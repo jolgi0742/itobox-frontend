@@ -1,0 +1,10 @@
+export { default as ConsolidationPage } from './pages/ConsolidationPage';
+export { default as DocumentsPage } from './pages/DocumentsPage';
+export { default as RatesPage } from './pages/RatesPage';
+export { default as ShippingPage } from './pages/ShippingPage';
+export { default as WarehousePage } from './pages/WarehousePage';
+export { default as ConsolidationModule } from './components/ConsolidationModule';
+export { default as DocumentsModule } from './components/DocumentsModule';
+export { default as RatesModule } from './components/RatesModule';
+export { default as ShippingModule } from './components/ShippingModule';
+export { default as WarehouseModule } from './components/WarehouseModule';

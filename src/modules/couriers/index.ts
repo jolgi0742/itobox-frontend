@@ -1,0 +1,1 @@
+export { default as CouriersPage } from './pages/CouriersPage';
