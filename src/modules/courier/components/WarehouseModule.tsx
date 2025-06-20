@@ -1,1010 +1,1198 @@
-// src/modules/courier/components/WarehouseModule.tsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { 
-  Package, 
-  Search, 
-  Plus, 
-  Mail, 
-  Plane, 
-  Ship, 
-  Eye, 
-  Trash2, 
-  Scale,
-  Box,
-  Calendar,
-  User,
-  Building,
-  MapPin,
-  DollarSign,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  RefreshCw
+  Package, Scale, QrCode, MapPin, User, Building, Search, Plus, Edit, Trash2, Eye,
+  FileText, Mail, CheckCircle, Clock, AlertCircle, Download, Filter, BarChart3,
+  Truck, Send, X, Calendar, Hash
 } from 'lucide-react';
-import { OperativeWarehouseService, type WHRPackage, type WHRCreateData, type WHRStats } from '../../../services/warehouseService';
 
-// ✅ INTERFACES LOCALES
-interface WHRFormData {
+interface WHRPackage {
+  id: string;
+  whrNumber: string;
   trackingNumber: string;
-  receivedBy: string;
-  carrier: string;
-  shipperName: string;
-  shipperCompany: string;
-  shipperAddress: string;
-  shipperPhone: string;
-  consigneeName: string;
-  consigneeCompany: string;
-  consigneeAddress: string;
-  consigneePhone: string;
-  consigneeEmail: string;
-  content: string;
+  shipper: string;
+  consignee: string;
   pieces: number;
   weight: number;
-  length: number;
-  width: number;
-  height: number;
-  declaredValue: number;
-  invoiceNumber: string;
-  poNumber: string;
-  departureDate: string;
-  transport: 'air' | 'sea';
-  estimatedArrivalCR: string;
+  volume: number;
+  description: string;
+  classification: 'aero' | 'maritime' | 'pending';
+  status: 'received' | 'processed' | 'dispatched' | 'delivered';
+  receivedDate: string;
+  estimatedDelivery: string;
+  location: string;
   notes: string;
+  urgency: 'normal' | 'urgent' | 'critical';
+  fragile: boolean;
+  hazardous: boolean;
+  requiresRepackaging: boolean;
+  value: number;
+  emailSent: boolean;
 }
 
-const WHROperativeModule: React.FC = () => {
-  // ✅ ESTADOS PRINCIPALES
-  const [whrList, setWhrList] = useState<WHRPackage[]>([]);
-  const [stats, setStats] = useState<WHRStats | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [isBackendHealthy, setIsBackendHealthy] = useState(false);
+const WarehouseModule: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'create' | 'list' | 'locations' | 'reports'>('create');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterClassification, setFilterClassification] = useState<'all' | 'pending' | 'awb' | 'bl'>('all');
-  const [activeTab, setActiveTab] = useState<'arrivals' | 'inventory' | 'classification' | 'reports'>('arrivals');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedClassification, setSelectedClassification] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
-  // ✅ FORMULARIO STATE
-  const [formData, setFormData] = useState<WHRFormData>({
+  const [formData, setFormData] = useState({
     trackingNumber: '',
-    receivedBy: 'Admin Usuario',
-    carrier: '',
-    shipperName: '',
-    shipperCompany: '',
-    shipperAddress: '',
-    shipperPhone: '',
-    consigneeName: '',
-    consigneeCompany: '',
-    consigneeAddress: '',
-    consigneePhone: '',
-    consigneeEmail: '',
-    content: '',
+    shipper: '',
+    consignee: '',
     pieces: 1,
     weight: 0,
     length: 0,
     width: 0,
     height: 0,
-    declaredValue: 0,
-    invoiceNumber: '',
-    poNumber: '',
-    departureDate: '',
-    transport: 'air',
-    estimatedArrivalCR: '',
-    notes: ''
+    description: '',
+    location: '',
+    notes: '',
+    value: 0,
+    urgency: 'normal' as 'normal' | 'urgent' | 'critical',
+    requiresRepackaging: false,
+    fragile: false,
+    hazardous: false
   });
 
-  // ✅ DATOS CALCULADOS
-  const [calculatedMetrics, setCalculatedMetrics] = useState({
-    volume: 0,
-    volumeWeight: 0
-  });
-
-  // ✅ EFECTOS
-  useEffect(() => {
-    initializeModule();
-  }, []);
-
-  useEffect(() => {
-    // Recalcular métricas cuando cambien las dimensiones
-    if (formData.length && formData.width && formData.height) {
-      const metrics = OperativeWarehouseService.calculateCAMCAMetrics(
-        formData.length,
-        formData.width,
-        formData.height
-      );
-      setCalculatedMetrics(metrics);
+  const [packages, setPackages] = useState<WHRPackage[]>([
+    {
+      id: '1',
+      whrNumber: 'WHR241216001',
+      trackingNumber: 'ITB001234567',
+      shipper: 'ACME Corporation',
+      consignee: 'María González Rodríguez',
+      pieces: 2,
+      weight: 5.5,
+      volume: 0.0125,
+      description: 'Electronics - Laptop Dell XPS 13 and accessories',
+      classification: 'aero',
+      status: 'received',
+      receivedDate: '2024-12-16',
+      estimatedDelivery: '2024-12-18',
+      location: 'A-01-03',
+      notes: 'Handle with extreme care - fragile items',
+      urgency: 'urgent',
+      fragile: true,
+      hazardous: false,
+      requiresRepackaging: false,
+      value: 25000,
+      emailSent: true
+    },
+    {
+      id: '2',
+      whrNumber: 'WHR241216002',
+      trackingNumber: 'ITB001234568',
+      shipper: 'Tech Solutions Ltd',
+      consignee: 'Carlos Mora Jiménez',
+      pieces: 1,
+      weight: 2.3,
+      volume: 0.008,
+      description: 'Legal documents and product samples',
+      classification: 'pending',
+      status: 'processed',
+      receivedDate: '2024-12-16',
+      estimatedDelivery: '2024-12-17',
+      location: 'B-02-01',
+      notes: 'Urgent delivery required for court hearing',
+      urgency: 'critical',
+      fragile: false,
+      hazardous: false,
+      requiresRepackaging: true,
+      value: 5000,
+      emailSent: false
     }
-  }, [formData.length, formData.width, formData.height]);
+  ]);
 
-  // ✅ INICIALIZACIÓN DEL MÓDULO
-  const initializeModule = async () => {
-    setLoading(true);
-    
-    try {
-      // Check backend health
-      const healthy = await OperativeWarehouseService.healthCheck();
-      setIsBackendHealthy(healthy);
-      
-      if (healthy) {
-        await Promise.all([
-          loadWHRList(),
-          loadStats()
-        ]);
-      }
-    } catch (error) {
-      console.error('❌ Error initializing module:', error);
-      setIsBackendHealthy(false);
-    } finally {
-      setLoading(false);
-    }
+  const stats = {
+    totalPackages: packages.length,
+    pendingClassification: packages.filter(p => p.classification === 'pending').length,
+    aeroPackages: packages.filter(p => p.classification === 'aero').length,
+    maritimePackages: packages.filter(p => p.classification === 'maritime').length,
+    totalWeight: packages.reduce((sum, p) => sum + p.weight, 0),
+    totalVolume: packages.reduce((sum, p) => sum + p.volume, 0),
+    urgentPackages: packages.filter(p => p.urgency === 'urgent' || p.urgency === 'critical').length,
+    deliveredToday: packages.filter(p => p.status === 'delivered').length
   };
 
-  // ✅ CARGAR LISTA DE WHRs
-  const loadWHRList = async () => {
-    try {
-      const filters = {
-        search: searchTerm || undefined,
-        classification: filterClassification !== 'all' ? filterClassification : undefined
-      };
-      
-      const response = await OperativeWarehouseService.getWHRList(filters);
-      
-      console.log('🔄 Response from backend:', response);
-      console.log('🔍 Response.data type:', typeof response.data);
-      console.log('🔍 Response.data content:', response.data);
-      
-      if (response.success && response.data) {
-        // ✅ FIX: El backend ahora devuelve directamente el array en data
-        if (Array.isArray(response.data)) {
-          console.log('✅ Setting WHR list directly:', response.data.length);
-          console.log('🔍 First WHR data:', response.data[0]);
-          setWhrList(response.data);
-        } else if (response.data.whrList && Array.isArray(response.data.whrList)) {
-          console.log('✅ Setting WHR list from whrList:', response.data.whrList.length);
-          setWhrList(response.data.whrList);
-        } else {
-          console.warn('⚠️ Unexpected response format:', response.data);
-          setWhrList([]);
-        }
-      } else {
-        console.warn('⚠️ Backend response not successful:', response);
-        setWhrList([]);
-      }
-    } catch (error) {
-      console.error('❌ Error loading WHR list:', error);
-      setWhrList([]);
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' 
+        ? (e.target as HTMLInputElement).checked 
+        : type === 'number' 
+          ? parseFloat(value) || 0 
+          : value
+    }));
   };
 
-  // ✅ CARGAR ESTADÍSTICAS
-  const loadStats = async () => {
-    try {
-      const response = await OperativeWarehouseService.getWHRStats();
-      
-      if (response.success && response.data) {
-        // ✅ FIX: Manejo correcto de stats
-        const statsData = response.data.stats || response.data;
-        setStats(statsData);
-      } else {
-        console.warn('⚠️ Stats response format unexpected:', response);
-        setStats({
-          total: 0,
-          pending: 0,
-          awb: 0,
-          bl: 0,
-          emails_pending: 0,
-          in_miami: 0,
-          by_air: 0,
-          by_sea: 0,
-          total_pieces: 0,
-          avg_weight: 0,
-          avg_volume: 0,
-          total_value: 0,
-          next_whr_number: OperativeWarehouseService.generateWHRNumber()
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error loading stats:', error);
-      setStats(null);
-    }
+  const calculateVolume = () => {
+    const { length, width, height } = formData;
+    return (length * width * height) / 1000000;
   };
 
-  // ✅ CREAR NUEVO WHR
-  const handleCreateWHR = async () => {
-    if (isSubmitting) return;
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Validar datos
-      const validation = OperativeWarehouseService.validateWHRData(formData);
-      
-      if (!validation.isValid) {
-        alert('❌ Errores de validación:\n' + validation.errors.join('\n'));
-        return;
-      }
+  const calculateVolumetricWeight = () => {
+    const volume = calculateVolume();
+    return volume * 167;
+  };
 
-      console.log('🔄 Creating WHR with data:', formData);
+  const generateWHRNumber = () => {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const sequence = (packages.length + 1).toString().padStart(3, '0');
+    return `WHR${year}${month}${day}${sequence}`;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const whrNumber = generateWHRNumber();
+      const volume = calculateVolume();
       
-      // ✅ FIX: Mapear datos correctamente usando la interface WHRCreateData
-      const whrData: WHRCreateData = {
+      const newPackage: WHRPackage = {
+        id: Date.now().toString(),
+        whrNumber,
         trackingNumber: formData.trackingNumber,
-        receivedBy: formData.receivedBy,
-        carrier: formData.carrier,
-        shipperName: formData.shipperName,
-        shipperCompany: formData.shipperCompany,
-        shipperAddress: formData.shipperAddress,
-        shipperPhone: formData.shipperPhone,
-        consigneeName: formData.consigneeName,
-        consigneeCompany: formData.consigneeCompany,
-        consigneeAddress: formData.consigneeAddress,
-        consigneePhone: formData.consigneePhone,
-        consigneeEmail: formData.consigneeEmail,
-        content: formData.content,
-        pieces: Number(formData.pieces),
-        weight: Number(formData.weight),
-        length: Number(formData.length),
-        width: Number(formData.width),
-        height: Number(formData.height),
-        declaredValue: Number(formData.declaredValue),
-        invoiceNumber: formData.invoiceNumber,
-        poNumber: formData.poNumber,
-        departureDate: formData.departureDate,
-        transport: formData.transport,
-        estimatedArrivalCR: formData.estimatedArrivalCR,
-        notes: formData.notes
+        shipper: formData.shipper,
+        consignee: formData.consignee,
+        pieces: formData.pieces,
+        weight: formData.weight,
+        volume,
+        description: formData.description,
+        classification: 'pending',
+        status: 'received',
+        receivedDate: new Date().toISOString().split('T')[0],
+        estimatedDelivery: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        location: formData.location,
+        notes: formData.notes,
+        urgency: formData.urgency,
+        fragile: formData.fragile,
+        hazardous: formData.hazardous,
+        requiresRepackaging: formData.requiresRepackaging,
+        value: formData.value,
+        emailSent: false
       };
 
-      // Crear WHR
-      const result = await OperativeWarehouseService.createWHR(whrData);
+      setPackages(prev => [newPackage, ...prev]);
       
-      console.log('✅ WHR creation result:', result);
-      
-      // ✅ FIX: Tipado correcto y manejo de diferentes formatos de respuesta
-      let newWHR: WHRPackage | null = null;
-      
-      // Verificar si result es directamente el WHR
-      if (result && typeof result === 'object' && 'id' in result && 'whrNumber' in result) {
-        newWHR = result as WHRPackage;
-      } 
-      // Verificar si result tiene estructura { data: whr }
-      else if (result && typeof result === 'object' && 'data' in result) {
-        const resultWithData = result as { data: WHRPackage };
-        if (resultWithData.data && 'id' in resultWithData.data) {
-          newWHR = resultWithData.data;
-        }
-      }
-      
-      if (newWHR) {
-        console.log('✅ Adding WHR to list:', newWHR);
-        setWhrList(prev => [newWHR as WHRPackage, ...prev]);
-        
-        // Recargar stats y lista completa para sincronizar
-        await Promise.all([loadStats(), loadWHRList()]);
-        
-        // Reset form
-        setFormData({
-          trackingNumber: '',
-          receivedBy: 'Admin Usuario',
-          carrier: '',
-          shipperName: '',
-          shipperCompany: '',
-          shipperAddress: '',
-          shipperPhone: '',
-          consigneeName: '',
-          consigneeCompany: '',
-          consigneeAddress: '',
-          consigneePhone: '',
-          consigneeEmail: '',
-          content: '',
-          pieces: 1,
-          weight: 0,
-          length: 0,
-          width: 0,
-          height: 0,
-          declaredValue: 0,
-          invoiceNumber: '',
-          poNumber: '',
-          departureDate: '',
-          transport: 'air',
-          estimatedArrivalCR: '',
-          notes: ''
-        });
-        
-        setShowCreateModal(false);
-        alert('✅ WHR creado exitosamente!');
-      } else {
-        console.error('❌ Could not extract WHR from result:', result);
-        // Aún así recargar la lista para mostrar el WHR creado
-        await loadWHRList();
-        setShowCreateModal(false);
-        alert('✅ WHR creado exitosamente! Recargando lista...');
-      }
-      
+      setFormData({
+        trackingNumber: '', shipper: '', consignee: '', pieces: 1, weight: 0,
+        length: 0, width: 0, height: 0, description: '', location: '', notes: '',
+        value: 0, urgency: 'normal', requiresRepackaging: false, fragile: false, hazardous: false
+      });
+
+      alert(`¡WHR creado exitosamente!\nNúmero: ${whrNumber}`);
+      setActiveTab('list');
+
     } catch (error) {
-      console.error('❌ Error creating WHR:', error);
-      alert('❌ Error creando WHR: ' + (error as Error).message);
+      console.error('Error:', error);
+      alert('Error al crear WHR. Inténtalo de nuevo.');
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
-  // ✅ CLASIFICAR WHR
-  const handleClassifyWHR = async (whrId: string, classification: 'awb' | 'bl') => {
+  const updateClassification = (id: string, classification: 'aero' | 'maritime') => {
+    setPackages(prev => prev.map(pkg => 
+      pkg.id === id ? { ...pkg, classification } : pkg
+    ));
+    const pkg = packages.find(p => p.id === id);
+    if (pkg) {
+      alert(`Paquete ${pkg.whrNumber} clasificado como ${classification === 'aero' ? 'Aéreo' : 'Marítimo'}`);
+    }
+  };
+
+  const updateStatus = (id: string, status: WHRPackage['status']) => {
+    setPackages(prev => prev.map(pkg => 
+      pkg.id === id ? { ...pkg, status } : pkg
+    ));
+  };
+
+  const sendEmail = async (pkg: WHRPackage) => {
     try {
-      const updatedWHR = await OperativeWarehouseService.classifyWHR(whrId, classification);
-      
-      // ✅ FIX: Verificar que updatedWHR existe
-      if (updatedWHR && updatedWHR.id) {
-        setWhrList(prev => prev.map(whr => 
-          whr.id === whrId ? updatedWHR : whr
-        ));
-        
-        await loadStats();
-        alert(`✅ WHR clasificado como ${classification.toUpperCase()}`);
-      }
+      setIsLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setPackages(prev => prev.map(p => 
+        p.id === pkg.id ? { ...p, emailSent: true } : p
+      ));
+      alert(`✅ Email enviado exitosamente a ${pkg.consignee}\nWHR: ${pkg.whrNumber}`);
     } catch (error) {
-      console.error('❌ Error classifying WHR:', error);
-      alert('❌ Error clasificando WHR');
+      alert('❌ Error al enviar email. Inténtalo de nuevo.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // ✅ ENVIAR EMAIL
-  const handleSendEmail = async (whrId: string) => {
-    try {
-      const response = await OperativeWarehouseService.sendWHREmail(whrId);
-      
-      if (response.success && response.data.whr) {
-        setWhrList(prev => prev.map(whr => 
-          whr.id === whrId ? response.data.whr : whr
-        ));
-        
-        alert('✅ Email enviado exitosamente');
-      }
-    } catch (error) {
-      console.error('❌ Error sending email:', error);
-      alert('❌ Error enviando email');
+  const deletePackage = (id: string) => {
+    const pkg = packages.find(p => p.id === id);
+    if (pkg && window.confirm(`¿Estás seguro de eliminar el WHR ${pkg.whrNumber}?`)) {
+      setPackages(prev => prev.filter(p => p.id !== id));
+      alert(`WHR ${pkg.whrNumber} eliminado exitosamente`);
     }
   };
 
-  // ✅ ELIMINAR WHR
-  const handleDeleteWHR = async (whrId: string) => {
-    if (!window.confirm('¿Estás seguro de eliminar este WHR?')) return;
-    
-    try {
-      const success = await OperativeWarehouseService.deleteWHR(whrId);
-      
-      if (success) {
-        setWhrList(prev => prev.filter(whr => whr.id !== whrId));
-        await loadStats();
-        alert('✅ WHR eliminado exitosamente');
-      }
-    } catch (error) {
-      console.error('❌ Error deleting WHR:', error);
-      alert('❌ Error eliminando WHR');
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'received': return 'bg-blue-100 text-blue-800';
+      case 'processed': return 'bg-yellow-100 text-yellow-800';
+      case 'dispatched': return 'bg-purple-100 text-purple-800';
+      case 'delivered': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // ✅ ACTUALIZAR DATOS
-  const handleRefresh = async () => {
-    await initializeModule();
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'received': return 'Recibido';
+      case 'processed': return 'Procesado';
+      case 'dispatched': return 'Despachado';
+      case 'delivered': return 'Entregado';
+      default: return status;
+    }
   };
 
-  // ✅ FILTRAR WHRs
-  const filteredWHRs = whrList.filter(whr => {
-    const matchesSearch = !searchTerm || 
-      whr.whrNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      whr.trackingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      whr.consignee?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+  const getClassificationColor = (classification: string) => {
+    switch (classification) {
+      case 'aero': return 'bg-sky-100 text-sky-800';
+      case 'maritime': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getClassificationText = (classification: string) => {
+    switch (classification) {
+      case 'aero': return 'Aéreo';
+      case 'maritime': return 'Marítimo';
+      case 'pending': return 'Pendiente';
+      default: return classification;
+    }
+  };
+
+  const getUrgencyColor = (urgency: string) => {
+    switch (urgency) {
+      case 'critical': return 'bg-red-100 text-red-800';
+      case 'urgent': return 'bg-yellow-100 text-yellow-800';
+      case 'normal': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getUrgencyText = (urgency: string) => {
+    switch (urgency) {
+      case 'critical': return 'Crítico';
+      case 'urgent': return 'Urgente';
+      case 'normal': return 'Normal';
+      default: return urgency;
+    }
+  };
+
+  const filteredPackages = packages.filter(pkg => {
+    const matchesSearch = 
+      pkg.whrNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pkg.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pkg.shipper.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pkg.consignee.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesFilter = filterClassification === 'all' || 
-      whr.classification === filterClassification;
+    const matchesStatus = selectedStatus === 'all' || pkg.status === selectedStatus;
+    const matchesClassification = selectedClassification === 'all' || pkg.classification === selectedClassification;
     
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesStatus && matchesClassification;
   });
 
-  // ✅ RENDER
-  return (
-    <div className="space-y-6">
-      {/* ✅ HEADER */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">Módulo Operativo - Gestión WHR</h2>
-          <p className="text-gray-600 mt-1">Sistema WHR (Warehouse Receipt) - ITOBOX Courier</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handleRefresh}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            <Plus className="w-4 h-4" />
-            Registrar Llegada
-          </button>
-        </div>
-      </div>
-
-      {/* ✅ ALERTAS DE ESTADO */}
-      {!isBackendHealthy && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <XCircle className="w-5 h-5 text-red-600" />
-            <span className="text-red-800 font-medium">Servicio de backend no disponible</span>
-            <button 
-              onClick={handleRefresh}
-              className="ml-auto text-red-600 hover:text-red-800 underline"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!isBackendHealthy && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-yellow-600" />
-            <span className="text-yellow-800">Servicio backend no disponible. Funcionando en modo offline.</span>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ DEBUG INFO */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-        <span className="text-blue-800">
-          📊 Debug Info: WHRs = Array({whrList.length}) | Filtered = Array({filteredWHRs.length}) | Healthy = {isBackendHealthy ? 'YES' : 'NO'}
-        </span>
-      </div>
-
-      {/* ✅ TABS */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {[
-            { id: 'arrivals', name: 'Llegadas WHR', icon: Package },
-            { id: 'inventory', name: 'Inventario Operativo', icon: Box },
-            { id: 'classification', name: 'Clasificación AWB/BL', icon: Plane },
-            { id: 'reports', name: 'Reportes Operativos', icon: Eye }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.name}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* ✅ ESTADÍSTICAS */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total WHRs</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              </div>
-              <Package className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pendientes</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.pending}</p>
-              </div>
-              <Clock className="w-8 h-8 text-orange-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">AWB (Aéreo)</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.awb}</p>
-              </div>
-              <Plane className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">BL (Marítimo)</p>
-                <p className="text-2xl font-bold text-cyan-600">{stats.bl}</p>
-              </div>
-              <Ship className="w-8 h-8 text-cyan-600" />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ CONTENIDO POR TAB */}
-      {activeTab === 'arrivals' && (
-        <div className="space-y-4">
-          {/* Búsqueda y filtros */}
-          <div className="flex gap-4 items-center">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+  const renderCreateForm = () => (
+    <div className="space-y-8">
+      {/* Información del Paquete */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <Package className="w-5 h-5" />
+          Información del Paquete
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Número de Tracking *
+            </label>
+            <div className="relative">
+              <QrCode className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar por WHR, tracking, consignee, contenido..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                name="trackingNumber"
+                value={formData.trackingNumber}
+                onChange={handleInputChange}
+                required
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-mono"
+                placeholder="ITB001234567"
               />
             </div>
-            
-            <select
-              value={filterClassification}
-              onChange={(e) => setFilterClassification(e.target.value as any)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Todas las clasificaciones</option>
-              <option value="pending">Pendientes</option>
-              <option value="awb">AWB (Aéreo)</option>
-              <option value="bl">BL (Marítimo)</option>
-            </select>
-            
-            <button
-              onClick={() => setSearchTerm('')}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Limpiar
-            </button>
           </div>
-
-          {/* Lista de WHRs */}
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
-                WHRs Registrados en Módulo Operativo ({filteredWHRs.length})
-              </h3>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ubicación en Almacén *
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <select
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                required
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none bg-white"
+              >
+                <option value="">Seleccionar ubicación</option>
+                <option value="A-01-01">A-01-01 (Pequeños)</option>
+                <option value="A-01-02">A-01-02 (Pequeños)</option>
+                <option value="A-01-03">A-01-03 (Pequeños)</option>
+                <option value="B-02-01">B-02-01 (Medianos)</option>
+                <option value="B-02-02">B-02-02 (Medianos)</option>
+                <option value="B-02-03">B-02-03 (Medianos)</option>
+                <option value="C-03-01">C-03-01 (Grandes)</option>
+                <option value="C-03-02">C-03-02 (Grandes)</option>
+                <option value="C-03-03">C-03-03 (Grandes)</option>
+              </select>
             </div>
-            
-            {loading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Cargando WHRs...</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Número de Piezas *
+            </label>
+            <input
+              type="number"
+              name="pieces"
+              value={formData.pieces}
+              onChange={handleInputChange}
+              min="1"
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="1"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+              <Scale className="w-4 h-4" />
+              Peso Total (kg) *
+            </label>
+            <input
+              type="number"
+              name="weight"
+              value={formData.weight}
+              onChange={handleInputChange}
+              step="0.1"
+              min="0"
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="0.0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Valor Declarado (₡) *
+            </label>
+            <input
+              type="number"
+              name="value"
+              value={formData.value}
+              onChange={handleInputChange}
+              min="0"
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Urgencia
+            </label>
+            <select
+              name="urgency"
+              value={formData.urgency}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none bg-white"
+            >
+              <option value="normal">Normal (3 días)</option>
+              <option value="urgent">Urgente (1 día)</option>
+              <option value="critical">Crítico (mismo día)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Dimensiones */}
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <Package className="w-5 h-5" />
+          Dimensiones del Paquete
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Largo (cm)</label>
+            <input
+              type="number"
+              name="length"
+              value={formData.length}
+              onChange={handleInputChange}
+              min="0"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Ancho (cm)</label>
+            <input
+              type="number"
+              name="width"
+              value={formData.width}
+              onChange={handleInputChange}
+              min="0"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Alto (cm)</label>
+            <input
+              type="number"
+              name="height"
+              value={formData.height}
+              onChange={handleInputChange}
+              min="0"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="0"
+            />
+          </div>
+        </div>
+        
+        {(formData.length > 0 && formData.width > 0 && formData.height > 0) && (
+          <div className="mt-6 p-4 bg-white/50 rounded-xl">
+            <h4 className="font-medium text-gray-700 mb-2">Cálculos Automáticos:</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Volumen:</span>
+                <p className="font-medium">{calculateVolume().toFixed(6)} m³</p>
               </div>
-            ) : filteredWHRs.length === 0 ? (
-              <div className="p-8 text-center">
-                <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2">No hay WHRs registrados en el Módulo Operativo</p>
-                <p className="text-sm text-gray-500 mb-4">
-                  Comience registrando la primera llegada de paquete en el Módulo Operativo
-                </p>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="w-4 h-4" />
-                  Registrar Primera Llegada
-                </button>
+              <div>
+                <span className="text-gray-600">Peso Volumétrico:</span>
+                <p className="font-medium">{calculateVolumetricWeight().toFixed(2)} kg</p>
               </div>
-            ) : (
-              <div className="divide-y divide-gray-200">
-                {filteredWHRs.map((whr) => (
-                  <div key={whr.id} className="p-6 hover:bg-gray-50">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* ✅ FIX: Verificar propiedades antes de usarlas */}
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{whr.whrNumber || 'N/A'}</h4>
-                          <p className="text-sm text-gray-600">Tracking: {whr.trackingNumber || 'N/A'}</p>
-                          <p className="text-sm text-gray-600">
-                            Consignee: {whr.consignee?.name || 'N/A'}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-sm text-gray-600">
-                            Piezas: {whr.pieces || 0} | Peso: {whr.weight || 0} lb
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Volumen: {whr.volume?.toFixed(4) || '0.0000'} ft³
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Valor: ${whr.declaredValue?.toFixed(2) || '0.00'}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            whr.classification === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            whr.classification === 'awb' ? 'bg-blue-100 text-blue-800' :
-                            whr.classification === 'bl' ? 'bg-cyan-100 text-cyan-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {whr.classification === 'pending' && <Clock className="w-3 h-3 mr-1" />}
-                            {whr.classification === 'awb' && <Plane className="w-3 h-3 mr-1" />}
-                            {whr.classification === 'bl' && <Ship className="w-3 h-3 mr-1" />}
-                            {whr.classification?.toUpperCase() || 'UNKNOWN'}
-                          </div>
-                          
-                          {whr.emailSent && (
-                            <div className="flex items-center mt-1 text-xs text-green-600">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Email enviado
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Acciones */}
-                      <div className="flex items-center gap-2 ml-4">
-                        {whr.classification === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleClassifyWHR(whr.id, 'awb')}
-                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                              title="Clasificar como AWB (Aéreo)"
-                            >
-                              <Plane className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleClassifyWHR(whr.id, 'bl')}
-                              className="p-1 text-cyan-600 hover:bg-cyan-50 rounded"
-                              title="Clasificar como BL (Marítimo)"
-                            >
-                              <Ship className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                        
-                        {!whr.emailSent && (
-                          <button
-                            onClick={() => handleSendEmail(whr.id)}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded"
-                            title="Enviar email de notificación"
-                          >
-                            <Mail className="w-4 h-4" />
-                          </button>
-                        )}
-                        
-                        <button
-                          onClick={() => handleDeleteWHR(whr.id)}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
-                          title="Eliminar WHR"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+              <div>
+                <span className="text-gray-600">Peso a Cobrar:</span>
+                <p className="font-medium text-blue-600">{Math.max(formData.weight, calculateVolumetricWeight()).toFixed(2)} kg</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Shipper y Consignee */}
+      <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-2xl p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <User className="w-5 h-5" />
+          Shipper y Consignee
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Shipper (Remitente) *</label>
+            <div className="relative">
+              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                name="shipper"
+                value={formData.shipper}
+                onChange={handleInputChange}
+                required
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                placeholder="Nombre de la empresa remitente"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Consignee (Destinatario) *</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                name="consignee"
+                value={formData.consignee}
+                onChange={handleInputChange}
+                required
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                placeholder="Nombre completo del destinatario"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Descripción */}
+      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <FileText className="w-5 h-5" />
+          Descripción y Características
+        </h3>
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Descripción del Contenido *</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              required
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all resize-none"
+              placeholder="Descripción detallada del contenido del paquete"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notas Especiales</label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleInputChange}
+              rows={2}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all resize-none"
+              placeholder="Instrucciones especiales de manejo, observaciones, etc."
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          <h4 className="font-medium text-gray-700">Características Especiales:</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label className="flex items-center space-x-3 cursor-pointer p-3 border rounded-xl hover:bg-yellow-50 transition-colors">
+              <input
+                type="checkbox"
+                name="requiresRepackaging"
+                checked={formData.requiresRepackaging}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-yellow-600 rounded"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Requiere Reempaque</span>
+                <p className="text-xs text-gray-500">Necesita nuevo embalaje</p>
+              </div>
+            </label>
+            <label className="flex items-center space-x-3 cursor-pointer p-3 border rounded-xl hover:bg-yellow-50 transition-colors">
+              <input
+                type="checkbox"
+                name="fragile"
+                checked={formData.fragile}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-yellow-600 rounded"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Frágil</span>
+                <p className="text-xs text-gray-500">Manejar con cuidado</p>
+              </div>
+            </label>
+            <label className="flex items-center space-x-3 cursor-pointer p-3 border rounded-xl hover:bg-yellow-50 transition-colors">
+              <input
+                type="checkbox"
+                name="hazardous"
+                checked={formData.hazardous}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-yellow-600 rounded"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Peligroso</span>
+                <p className="text-xs text-gray-500">Material peligroso</p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Botón de envío */}
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Creando WHR...
+            </>
+          ) : (
+            <>
+              <Plus className="w-5 h-5" />
+              Crear Warehouse Receipt
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderPackagesList = () => (
+    <div className="space-y-6">
+      {/* Barra de búsqueda */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por WHR, tracking, shipper o consignee..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          />
+        </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors flex items-center gap-2"
+        >
+          <Filter className="w-5 h-5" />
+          Filtros
+        </button>
+        <button
+          onClick={() => setActiveTab('create')}
+          className="px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl hover:from-green-600 hover:to-teal-700 transition-all flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          Nuevo WHR
+        </button>
+      </div>
+
+      {/* Panel de filtros */}
+      {showFilters && (
+        <div className="bg-gray-50 rounded-2xl p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Todos los estados</option>
+                <option value="received">Recibido</option>
+                <option value="processed">Procesado</option>
+                <option value="dispatched">Despachado</option>
+                <option value="delivered">Entregado</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Clasificación</label>
+              <select
+                value={selectedClassification}
+                onChange={(e) => setSelectedClassification(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Todas las clasificaciones</option>
+                <option value="aero">Aéreo</option>
+                <option value="maritime">Marítimo</option>
+                <option value="pending">Pendiente</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setSelectedStatus('all');
+                  setSelectedClassification('all');
+                  setSearchTerm('');
+                }}
+                className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Limpiar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lista de paquetes */}
+      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">WHR</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Tracking</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Shipper</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Consignee</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Peso</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Urgencia</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Clasificación</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Estado</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredPackages.map((pkg) => (
+                <tr key={pkg.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <Hash className="w-4 h-4 text-gray-400" />
+                      <span className="font-mono text-sm font-medium text-blue-600">
+                        {pkg.whrNumber}
+                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <QrCode className="w-4 h-4 text-gray-400" />
+                      <span className="font-mono text-sm">{pkg.trackingNumber}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700 max-w-32 truncate" title={pkg.shipper}>
+                    {pkg.shipper}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700 max-w-32 truncate" title={pkg.consignee}>
+                    {pkg.consignee}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700 flex items-center gap-1">
+                    <Scale className="w-4 h-4 text-gray-400" />
+                    {pkg.weight} kg
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getUrgencyColor(pkg.urgency)}`}>
+                      {getUrgencyText(pkg.urgency)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getClassificationColor(pkg.classification)}`}>
+                        {getClassificationText(pkg.classification)}
+                      </span>
+                      {pkg.classification === 'pending' && (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => updateClassification(pkg.id, 'aero')}
+                            className="px-2 py-1 text-xs bg-sky-500 text-white rounded hover:bg-sky-600 transition-colors"
+                            title="Clasificar como Aéreo"
+                          >
+                            Aéreo
+                          </button>
+                          <button
+                            onClick={() => updateClassification(pkg.id, 'maritime')}
+                            className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                            title="Clasificar como Marítimo"
+                          >
+                            Marítimo
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <select
+                      value={pkg.status}
+                      onChange={(e) => updateStatus(pkg.id, e.target.value as WHRPackage['status'])}
+                      className={`text-xs font-medium rounded-full px-2 py-1 border-0 ${getStatusColor(pkg.status)}`}
+                    >
+                      <option value="received">Recibido</option>
+                      <option value="processed">Procesado</option>
+                      <option value="dispatched">Despachado</option>
+                      <option value="delivered">Entregado</option>
+                    </select>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => alert(`Ver detalles de ${pkg.whrNumber}`)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver detalles"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => sendEmail(pkg)}
+                        disabled={pkg.emailSent || isLoading}
+                        className={`p-2 rounded-lg transition-colors ${
+                          pkg.emailSent 
+                            ? 'text-green-600 bg-green-50' 
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                        title={pkg.emailSent ? 'Email enviado' : 'Enviar notificación'}
+                      >
+                        {pkg.emailSent ? <CheckCircle className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => alert(`Descargar WHR ${pkg.whrNumber}`)}
+                        className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                        title="Descargar WHR"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => deletePackage(pkg.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex gap-1 mt-1">
+                      {pkg.fragile && (
+                        <span className="text-xs bg-yellow-100 text-yellow-800 px-1 rounded" title="Frágil">F</span>
+                      )}
+                      {pkg.hazardous && (
+                        <span className="text-xs bg-red-100 text-red-800 px-1 rounded" title="Peligroso">P</span>
+                      )}
+                      {pkg.requiresRepackaging && (
+                        <span className="text-xs bg-orange-100 text-orange-800 px-1 rounded" title="Requiere reempaque">R</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredPackages.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              {searchTerm || selectedStatus !== 'all' || selectedClassification !== 'all' 
+                ? 'No se encontraron resultados' 
+                : 'No hay paquetes en almacén'}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {searchTerm || selectedStatus !== 'all' || selectedClassification !== 'all'
+                ? 'Intenta ajustar los filtros de búsqueda' 
+                : 'Crea tu primer Warehouse Receipt para comenzar'
+              }
+            </p>
+            {!searchTerm && selectedStatus === 'all' && selectedClassification === 'all' && (
+              <button
+                onClick={() => setActiveTab('create')}
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all flex items-center gap-2 mx-auto"
+              >
+                <Plus className="w-5 h-5" />
+                Crear Primer WHR
+              </button>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* ✅ OTRAS TABS (simplificadas para el fix) */}
-      {activeTab === 'inventory' && (
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventario Operativo</h3>
-          <p className="text-gray-600">Gestión de inventario WHR en tiempo real.</p>
-        </div>
-      )}
-
-      {activeTab === 'classification' && (
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Clasificación AWB/BL</h3>
-          <p className="text-gray-600">Centro de clasificación de transporte aéreo y marítimo.</p>
-        </div>
-      )}
-
-      {activeTab === 'reports' && (
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Reportes Operativos</h3>
-          <p className="text-gray-600">Reportes y análisis del Módulo Operativo.</p>
-        </div>
-      )}
-
-      {/* ✅ MODAL DE CREACIÓN */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Registrar Nueva Llegada WHR</h3>
+      {/* Estadísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm">Total Paquetes</p>
+              <p className="text-3xl font-bold">{stats.totalPackages}</p>
             </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Información básica */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tracking Number *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.trackingNumber}
-                    onChange={(e) => setFormData(prev => ({ ...prev, trackingNumber: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Ejemplo: TRK241216001"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Carrier/Transportista *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.carrier}
-                    onChange={(e) => setFormData(prev => ({ ...prev, carrier: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Ejemplo: DHL, FedEx, UPS"
-                  />
-                </div>
-              </div>
-
-              {/* Información del Shipper */}
-              <div className="border-t pt-6">
-                <h4 className="text-md font-semibold text-gray-900 mb-4">Información del Shipper</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre del Shipper *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.shipperName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, shipperName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nombre completo del remitente"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Compañía del Shipper
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.shipperCompany}
-                      onChange={(e) => setFormData(prev => ({ ...prev, shipperCompany: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nombre de la empresa (opcional)"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Información del Consignee */}
-              <div className="border-t pt-6">
-                <h4 className="text-md font-semibold text-gray-900 mb-4">Información del Consignee</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre del Consignee *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.consigneeName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, consigneeName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nombre completo del destinatario"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email del Consignee
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.consigneeEmail}
-                      onChange={(e) => setFormData(prev => ({ ...prev, consigneeEmail: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="email@ejemplo.com"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Información del Paquete */}
-              <div className="border-t pt-6">
-                <h4 className="text-md font-semibold text-gray-900 mb-4">Información del Paquete</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Contenido/Descripción *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.content}
-                      onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Descripción del contenido del paquete"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Número de Piezas *
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.pieces}
-                      onChange={(e) => setFormData(prev => ({ ...prev, pieces: parseInt(e.target.value) || 1 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Dimensiones y Peso */}
-              <div className="border-t pt-6">
-                <h4 className="text-md font-semibold text-gray-900 mb-4">Dimensiones y Peso</h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Peso (lb) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={formData.weight}
-                      onChange={(e) => setFormData(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.0"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Largo (cm) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={formData.length}
-                      onChange={(e) => setFormData(prev => ({ ...prev, length: parseFloat(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.0"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ancho (cm) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={formData.width}
-                      onChange={(e) => setFormData(prev => ({ ...prev, width: parseFloat(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.0"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Alto (cm) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={formData.height}
-                      onChange={(e) => setFormData(prev => ({ ...prev, height: parseFloat(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.0"
-                    />
-                  </div>
-                </div>
-                
-                {/* Cálculos automáticos */}
-                {calculatedMetrics.volume > 0 && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <h5 className="text-sm font-medium text-blue-900 mb-2">Cálculos Automáticos WHR:</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-blue-700">Volumen: </span>
-                        <span className="font-medium">{calculatedMetrics.volume} ft³</span>
-                      </div>
-                      <div>
-                        <span className="text-blue-700">Peso Volumétrico: </span>
-                        <span className="font-medium">{calculatedMetrics.volumeWeight} vlb</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Valor Declarado y Transporte */}
-              <div className="border-t pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Valor Declarado (USD) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.declaredValue}
-                      onChange={(e) => setFormData(prev => ({ ...prev, declaredValue: parseFloat(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tipo de Transporte *
-                    </label>
-                    <select
-                      value={formData.transport}
-                      onChange={(e) => setFormData(prev => ({ ...prev, transport: e.target.value as 'air' | 'sea' }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="air">Aéreo (AWB)</option>
-                      <option value="sea">Marítimo (BL)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Notas adicionales */}
-              <div className="border-t pt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notas Adicionales
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.notes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Información adicional sobre el paquete o instrucciones especiales..."
-                />
-              </div>
+            <Package className="w-8 h-8 text-blue-200" />
+          </div>
+        </div>
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-100 text-sm">Pendientes</p>
+              <p className="text-3xl font-bold">{stats.pendingClassification}</p>
             </div>
-            
-            {/* Botones del modal */}
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                disabled={isSubmitting}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreateWHR}
-                disabled={isSubmitting}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isSubmitting && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                {isSubmitting ? 'Creando...' : 'Crear WHR'}
-              </button>
+            <AlertCircle className="w-8 h-8 text-orange-200" />
+          </div>
+        </div>
+        <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sky-100 text-sm">Aéreos</p>
+              <p className="text-3xl font-bold">{stats.aeroPackages}</p>
+            </div>
+            <Package className="w-8 h-8 text-sky-200" />
+          </div>
+        </div>
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm">Marítimos</p>
+              <p className="text-3xl font-bold">{stats.maritimePackages}</p>
+            </div>
+            <Truck className="w-8 h-8 text-blue-200" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderLocations = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="text-center mb-8">
+          <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">Gestión de Ubicaciones</h3>
+          <p className="text-gray-600">
+            Administra las ubicaciones del almacén y consulta la disponibilidad
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Zona A */}
+          <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-green-800">Zona A</h4>
+              <Package className="w-5 h-5 text-green-600" />
+            </div>
+            <p className="text-sm text-green-600 mb-4">Paquetes Pequeños</p>
+            <div className="space-y-2">
+              {['A-01-01', 'A-01-02', 'A-01-03'].map((location) => {
+                const isOccupied = packages.some(p => p.location === location);
+                return (
+                  <div key={location} className="flex justify-between items-center text-sm">
+                    <span className="font-mono">{location}</span>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      isOccupied ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                    }`}>
+                      {isOccupied ? 'Ocupado' : 'Disponible'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
+          {/* Zona B */}
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-blue-800">Zona B</h4>
+              <Package className="w-5 h-5 text-blue-600" />
+            </div>
+            <p className="text-sm text-blue-600 mb-4">Paquetes Medianos</p>
+            <div className="space-y-2">
+              {['B-02-01', 'B-02-02', 'B-02-03'].map((location) => {
+                const isOccupied = packages.some(p => p.location === location);
+                return (
+                  <div key={location} className="flex justify-between items-center text-sm">
+                    <span className="font-mono">{location}</span>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      isOccupied ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                    }`}>
+                      {isOccupied ? 'Ocupado' : 'Disponible'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
+          {/* Zona C */}
+          <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-purple-800">Zona C</h4>
+              <Package className="w-5 h-5 text-purple-600" />
+            </div>
+            <p className="text-sm text-purple-600 mb-4">Paquetes Grandes</p>
+            <div className="space-y-2">
+              {['C-03-01', 'C-03-02', 'C-03-03'].map((location) => {
+                const isOccupied = packages.some(p => p.location === location);
+                return (
+                  <div key={location} className="flex justify-between items-center text-sm">
+                    <span className="font-mono">{location}</span>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      isOccupied ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                    }`}>
+                      {isOccupied ? 'Ocupado' : 'Disponible'}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
-      )}
+      </div>
+    </div>
+  );
+
+  const renderReports = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="text-center mb-8">
+          <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">Reportes y Analytics</h3>
+          <p className="text-gray-600">Análisis del rendimiento del almacén</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm">Volumen Total</p>
+                <p className="text-2xl font-bold">{stats.totalVolume.toFixed(3)} m³</p>
+              </div>
+              <Package className="w-8 h-8 text-blue-200" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100 text-sm">Peso Total</p>
+                <p className="text-2xl font-bold">{stats.totalWeight.toFixed(1)} kg</p>
+              </div>
+              <Scale className="w-8 h-8 text-green-200" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100 text-sm">Valor Total</p>
+                <p className="text-2xl font-bold">₡{packages.reduce((sum, p) => sum + p.value, 0).toLocaleString()}</p>
+              </div>
+              <FileText className="w-8 h-8 text-purple-200" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-100 text-sm">Eficiencia</p>
+                <p className="text-2xl font-bold">{Math.round((stats.aeroPackages + stats.maritimePackages) / stats.totalPackages * 100)}%</p>
+              </div>
+              <BarChart3 className="w-8 h-8 text-orange-200" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button
+            onClick={() => alert('Generando reporte diario...')}
+            className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+          >
+            <Download className="w-5 h-5" />
+            Reporte Diario
+          </button>
+          <button
+            onClick={() => alert('Generando reporte semanal...')}
+            className="flex-1 px-4 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+          >
+            <Download className="w-5 h-5" />
+            Reporte Semanal
+          </button>
+          <button
+            onClick={() => alert('Exportando a Excel...')}
+            className="flex-1 px-4 py-3 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+          >
+            <FileText className="w-5 h-5" />
+            Exportar Excel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Módulo de Almacén</h1>
+          <p className="text-gray-600">Gestiona warehouse receipts, ubicaciones y operaciones</p>
+        </div>
+        <div className="flex gap-4">
+          <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-100">
+            <div className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-blue-500" />
+              <div>
+                <p className="text-xs text-gray-500">Total WHRs</p>
+                <p className="text-lg font-bold text-gray-800">{stats.totalPackages}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-100">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              <div>
+                <p className="text-xs text-gray-500">Pendientes</p>
+                <p className="text-lg font-bold text-gray-800">{stats.pendingClassification}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-100">
+            <div className="flex items-center gap-2">
+              <Scale className="w-5 h-5 text-green-500" />
+              <div>
+                <p className="text-xs text-gray-500">Peso Total</p>
+                <p className="text-lg font-bold text-gray-800">{stats.totalWeight.toFixed(1)}kg</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-2">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setActiveTab('create')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+              activeTab === 'create'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Plus className="w-5 h-5" />
+              Crear WHR
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+              activeTab === 'list'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Package className="w-5 h-5" />
+              Lista WHR
+              {packages.length > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {packages.length}
+                </span>
+              )}
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('locations')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+              activeTab === 'locations'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <MapPin className="w-5 h-5" />
+              Ubicaciones
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+              activeTab === 'reports'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Reportes
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-8">
+        <form onSubmit={handleSubmit}>
+          {activeTab === 'create' && renderCreateForm()}
+        </form>
+        {activeTab === 'list' && renderPackagesList()}
+        {activeTab === 'locations' && renderLocations()}
+        {activeTab === 'reports' && renderReports()}
+      </div>
     </div>
   );
 };
 
-export default WHROperativeModule;
+export default WarehouseModule;

@@ -1,354 +1,294 @@
-// src/modules/courier/components/ShippingModule.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Package, 
-  Plus, 
-  Trash2, 
-  Calculator, 
-  Printer, 
-  Save, 
-  Scale,  // ✅ Cambiado de Weight
-  Ruler, 
-  MapPin, 
   User, 
-  Phone, 
-  Mail, 
-  Building,
-  Plane,
-  Ship,
-  Truck
+  MapPin, 
+  Scale, 
+  Ruler, 
+  DollarSign, 
+  Truck, 
+  Clock, 
+  QrCode,
+  FileText,
+  Send,
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye
 } from 'lucide-react';
 
-interface ShippingData {
-  trackingNumber: string;
-  destination: string;
-  serviceType: string;
-  priority: string;
-  instructions: string;
-  shipper: {
-    name: string;
-    company: string;
-    address: string;
-    phone: string;
-    email: string;
-  };
-  consignee: {
-    name: string;
-    company: string;
-    address: string;
-    phone: string;
-    email: string;
-  };
-}
-
-interface PackageItem {
-  id: string;
-  description: string;
-  weight: string;
-  length: string;
-  width: string;
-  height: string;
-  volume: string;
-  declaredValue: string;
-  quantity: string;
-}
-
-interface CalculatedRate {
+interface ShippingFormData {
+  // Información del Remitente
+  senderName: string;
+  senderEmail: string;
+  senderPhone: string;
+  senderAddress: string;
+  senderCity: string;
+  
+  // Información del Destinatario
+  recipientName: string;
+  recipientEmail: string;
+  recipientPhone: string;
+  recipientAddress: string;
+  recipientCity: string;
+  
+  // Información del Paquete
+  packageType: string;
   weight: number;
-  rate: number;
-  subtotal: number;
-  insurance: number;
-  handling: number;
-  total: number;
+  length: number;
+  width: number;
+  height: number;
+  declaredValue: number;
+  contents: string;
+  
+  // Servicio
+  serviceType: 'express' | 'standard' | 'economy';
+  deliveryDate: string;
+  deliveryTime: string;
+  specialInstructions: string;
+  
+  // Opciones
+  insurance: boolean;
+  signatureRequired: boolean;
+  cashOnDelivery: boolean;
+  codAmount: number;
+}
+
+interface Package {
+  id: string;
+  trackingNumber: string;
+  senderName: string;
+  recipientName: string;
+  recipientCity: string;
+  weight: number;
+  serviceType: string;
+  status: 'pending' | 'picked_up' | 'in_transit' | 'delivered';
+  createdAt: string;
+  estimatedDelivery: string;
+  cost: number;
 }
 
 const ShippingModule: React.FC = () => {
-  const [shippingData, setShippingData] = useState<ShippingData>({
-    trackingNumber: '',
-    destination: 'Venezuela',
-    serviceType: 'air',
-    priority: 'normal',
-    instructions: '',
-    shipper: {
-      name: '',
-      company: '',
-      address: '',
-      phone: '',
-      email: ''
-    },
-    consignee: {
-      name: '',
-      company: '',
-      address: '',
-      phone: '',
-      email: ''
-    }
+  const [activeTab, setActiveTab] = useState<'create' | 'list' | 'tracking'>('create');
+  const [formData, setFormData] = useState<ShippingFormData>({
+    senderName: '',
+    senderEmail: '',
+    senderPhone: '',
+    senderAddress: '',
+    senderCity: '',
+    recipientName: '',
+    recipientEmail: '',
+    recipientPhone: '',
+    recipientAddress: '',
+    recipientCity: '',
+    packageType: 'package',
+    weight: 0,
+    length: 0,
+    width: 0,
+    height: 0,
+    declaredValue: 0,
+    contents: '',
+    serviceType: 'standard',
+    deliveryDate: '',
+    deliveryTime: '',
+    specialInstructions: '',
+    insurance: false,
+    signatureRequired: false,
+    cashOnDelivery: false,
+    codAmount: 0
   });
 
-  const [packages, setPackages] = useState<PackageItem[]>([
+  const [packages, setPackages] = useState<Package[]>([
     {
       id: '1',
-      description: '',
-      weight: '',
-      length: '',
-      width: '',
-      height: '',
-      volume: '0.00',
-      declaredValue: '',
-      quantity: '1'
+      trackingNumber: 'ITB001234567',
+      senderName: 'Juan Pérez',
+      recipientName: 'María González',
+      recipientCity: 'San José',
+      weight: 2.5,
+      serviceType: 'Express',
+      status: 'in_transit',
+      createdAt: '2024-06-15',
+      estimatedDelivery: '2024-06-16',
+      cost: 15500
+    },
+    {
+      id: '2',
+      trackingNumber: 'ITB001234568',
+      senderName: 'Carlos Mora',
+      recipientName: 'Ana Jiménez',
+      recipientCity: 'Cartago',
+      weight: 1.2,
+      serviceType: 'Standard',
+      status: 'pending',
+      createdAt: '2024-06-15',
+      estimatedDelivery: '2024-06-17',
+      cost: 8500
     }
   ]);
 
-  const [calculatedRate, setCalculatedRate] = useState<CalculatedRate | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Tarifas por país y tipo de servicio
-  const rates = {
-    Venezuela: { air: 4.50, maritime: 2.20 },
-    Colombia: { air: 3.80, maritime: 1.90 },
-    USA: { air: 5.20, maritime: 2.50 }
-  };
-
-  const calculateRate = () => {
-    const totalWeight = packages.reduce((sum, pkg) => sum + (parseFloat(pkg.weight) || 0), 0);
-    const rate = rates[shippingData.destination as keyof typeof rates]?.[shippingData.serviceType as 'air' | 'maritime'] || 2.0;
-    const subtotal = totalWeight * rate;
-    const insurance = subtotal * 0.01;
-    const handling = 50;
-    const total = subtotal + insurance + handling;
-    
-    setCalculatedRate({
-      weight: totalWeight,
-      rate: rate,
-      subtotal: subtotal,
-      insurance: insurance,
-      handling: handling,
-      total: total
-    });
-  };
-
-  // Agregar paquete
-  const addPackage = () => {
-    const newPackage: PackageItem = {
-      id: Date.now().toString(),
-      description: '',
-      weight: '',
-      length: '',
-      width: '',
-      height: '',
-      volume: '0.00',
-      declaredValue: '',
-      quantity: '1'
-    };
-    setPackages([...packages, newPackage]);
-  };
-
-  // Eliminar paquete
-  const removePackage = (id: string) => {
-    setPackages(packages.filter(pkg => pkg.id !== id));
-  };
-
-  // Actualizar paquete - ✅ Corregido con tipos
-  const updatePackage = (id: string, field: string, value: string) => {
-    setPackages(packages.map(pkg => {
-      if (pkg.id === id) {
-        const updated = { ...pkg, [field]: value };
-        // Calcular volumen automáticamente
-        if (['length', 'width', 'height'].includes(field)) {
-          const l = parseFloat(updated.length) || 0;
-          const w = parseFloat(updated.width) || 0;
-          const h = parseFloat(updated.height) || 0;
-          updated.volume = (l * w * h / 1728).toFixed(2); // en pies cúbicos
-        }
-        return updated;
-      }
-      return pkg;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' 
+        ? (e.target as HTMLInputElement).checked 
+        : type === 'number' 
+          ? parseFloat(value) || 0 
+          : value
     }));
   };
 
-  // Generar número de tracking
-  const generateTrackingNumber = () => {
-    const prefix = 'ITC';
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    setShippingData({
-      ...shippingData,
-      trackingNumber: `${prefix}${timestamp}${random}`
-    });
+  const calculateVolume = () => {
+    const { length, width, height } = formData;
+    return length * width * height;
   };
 
-  useEffect(() => {
-    if (packages.length > 0 && packages[0].weight) {
-      calculateRate();
+  const calculateVolumetricWeight = () => {
+    const volume = calculateVolume();
+    return volume / 5000; // Factor estándar para peso volumétrico
+  };
+
+  const calculateShippingCost = () => {
+    const actualWeight = formData.weight;
+    const volumetricWeight = calculateVolumetricWeight();
+    const chargeableWeight = Math.max(actualWeight, volumetricWeight);
+    
+    const baseRates = {
+      express: 12000,
+      standard: 8000,
+      economy: 5000
+    };
+    
+    let cost = baseRates[formData.serviceType];
+    cost += chargeableWeight * 1500; // ₡1500 por kg
+    
+    if (formData.insurance) cost += formData.declaredValue * 0.01;
+    if (formData.signatureRequired) cost += 2000;
+    if (formData.cashOnDelivery) cost += 3000;
+    
+    return Math.round(cost);
+  };
+
+  const generateTrackingNumber = () => {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    
+    return `ITB${year}${month}${day}${random}`;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const trackingNumber = generateTrackingNumber();
+      const cost = calculateShippingCost();
+      
+      const newPackage: Package = {
+        id: Date.now().toString(),
+        trackingNumber,
+        senderName: formData.senderName,
+        recipientName: formData.recipientName,
+        recipientCity: formData.recipientCity,
+        weight: formData.weight,
+        serviceType: formData.serviceType.charAt(0).toUpperCase() + formData.serviceType.slice(1),
+        status: 'pending',
+        createdAt: new Date().toISOString().split('T')[0],
+        estimatedDelivery: formData.deliveryDate,
+        cost
+      };
+
+      setPackages(prev => [newPackage, ...prev]);
+      
+      // Limpiar formulario
+      setFormData({
+        senderName: '', senderEmail: '', senderPhone: '', senderAddress: '', senderCity: '',
+        recipientName: '', recipientEmail: '', recipientPhone: '', recipientAddress: '', recipientCity: '',
+        packageType: 'package', weight: 0, length: 0, width: 0, height: 0, declaredValue: 0, contents: '',
+        serviceType: 'standard', deliveryDate: '', deliveryTime: '', specialInstructions: '',
+        insurance: false, signatureRequired: false, cashOnDelivery: false, codAmount: 0
+      });
+
+      alert(`¡Guía creada exitosamente!\nNúmero de tracking: ${trackingNumber}\nCosto: ₡${cost.toLocaleString()}`);
+      setActiveTab('list');
+
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al crear la guía');
+    } finally {
+      setIsLoading(false);
     }
-  }, [packages, shippingData.destination, shippingData.serviceType]);
+  };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Package className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Crear Guía de Envío</h2>
-              <p className="text-sm text-gray-500">Sistema de envíos internacionales</p>
-            </div>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={generateTrackingNumber}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Generar Tracking
-            </button>
-          </div>
-        </div>
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'picked_up': return 'bg-blue-100 text-blue-800';
+      case 'in_transit': return 'bg-purple-100 text-purple-800';
+      case 'delivered': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-        {/* Tracking Number */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Número de Tracking
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-              value={shippingData.trackingNumber}
-              readOnly
-              placeholder="Generar automáticamente"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              País de Destino
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.destination}
-              onChange={(e) => setShippingData({...shippingData, destination: e.target.value})}
-            >
-              <option value="Venezuela">Venezuela</option>
-              <option value="Colombia">Colombia</option>
-              <option value="USA">Estados Unidos</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipo de Servicio
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.serviceType}
-              onChange={(e) => setShippingData({...shippingData, serviceType: e.target.value})}
-            >
-              <option value="air">Aéreo</option>
-              <option value="maritime">Marítimo</option>
-            </select>
-          </div>
-        </div>
-      </div>
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pendiente';
+      case 'picked_up': return 'Recolectado';
+      case 'in_transit': return 'En Tránsito';
+      case 'delivered': return 'Entregado';
+      default: return status;
+    }
+  };
 
-      {/* Información del Envío */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Información del Envío</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Prioridad
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.priority}
-              onChange={(e) => setShippingData({...shippingData, priority: e.target.value})}
-            >
-              <option value="normal">Normal</option>
-              <option value="high">Alta</option>
-              <option value="urgent">Urgente</option>
-            </select>
-          </div>
-        </div>
+  const filteredPackages = packages.filter(pkg =>
+    pkg.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    pkg.senderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    pkg.recipientName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Instrucciones Especiales
-          </label>
-          <textarea 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3} // ✅ Corregido: rows={3} en lugar de rows="3"
-            value={shippingData.instructions}
-            onChange={(e) => setShippingData({...shippingData, instructions: e.target.value})}
-            placeholder="Instrucciones especiales para el envío..."
-          />
-        </div>
-      </div>
-
+  const renderCreateForm = () => (
+    <div className="space-y-8">
       {/* Información del Remitente */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <User className="h-5 w-5 mr-2 text-blue-600" />
-          Información del Remitente (Shipper)
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <User className="w-5 h-5" />
+          Información del Remitente
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nombre Completo
+              Nombre Completo *
             </label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.shipper.name}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                shipper: { ...shippingData.shipper, name: e.target.value }
-              })}
+              name="senderName"
+              value={formData.senderName}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               placeholder="Nombre del remitente"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Empresa
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.shipper.company}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                shipper: { ...shippingData.shipper, company: e.target.value }
-              })}
-              placeholder="Nombre de la empresa"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Dirección Completa
-            </label>
-            <textarea 
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={2} // ✅ Corregido: rows={2} en lugar de rows="2"
-              value={shippingData.shipper.address}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                shipper: { ...shippingData.shipper, address: e.target.value }
-              })}
-              placeholder="Dirección completa del remitente"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Teléfono
+              Teléfono *
             </label>
             <input
               type="tel"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.shipper.phone}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                shipper: { ...shippingData.shipper, phone: e.target.value }
-              })}
-              placeholder="Teléfono de contacto"
+              name="senderPhone"
+              value={formData.senderPhone}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="+506 1234-5678"
             />
           </div>
           <div>
@@ -357,83 +297,77 @@ const ShippingModule: React.FC = () => {
             </label>
             <input
               type="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.shipper.email}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                shipper: { ...shippingData.shipper, email: e.target.value }
-              })}
-              placeholder="Email del remitente"
+              name="senderEmail"
+              value={formData.senderEmail}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="correo@ejemplo.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ciudad *
+            </label>
+            <input
+              type="text"
+              name="senderCity"
+              value={formData.senderCity}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="Ciudad del remitente"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dirección Completa *
+            </label>
+            <textarea
+              name="senderAddress"
+              value={formData.senderAddress}
+              onChange={handleInputChange}
+              required
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+              placeholder="Dirección completa del remitente"
             />
           </div>
         </div>
       </div>
 
       {/* Información del Destinatario */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <MapPin className="h-5 w-5 mr-2 text-green-600" />
-          Información del Destinatario (Consignee)
+      <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-2xl p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <MapPin className="w-5 h-5" />
+          Información del Destinatario
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nombre Completo
+              Nombre Completo *
             </label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.consignee.name}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                consignee: { ...shippingData.consignee, name: e.target.value }
-              })}
+              name="recipientName"
+              value={formData.recipientName}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
               placeholder="Nombre del destinatario"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Empresa
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.consignee.company}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                consignee: { ...shippingData.consignee, company: e.target.value }
-              })}
-              placeholder="Nombre de la empresa"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Dirección Completa
-            </label>
-            <textarea 
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={2} // ✅ Corregido
-              value={shippingData.consignee.address}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                consignee: { ...shippingData.consignee, address: e.target.value }
-              })}
-              placeholder="Dirección completa del destinatario"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Teléfono
+              Teléfono *
             </label>
             <input
               type="tel"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.consignee.phone}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                consignee: { ...shippingData.consignee, phone: e.target.value }
-              })}
-              placeholder="Teléfono de contacto"
+              name="recipientPhone"
+              value={formData.recipientPhone}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              placeholder="+506 9876-5432"
             />
           </div>
           <div>
@@ -442,219 +376,586 @@ const ShippingModule: React.FC = () => {
             </label>
             <input
               type="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={shippingData.consignee.email}
-              onChange={(e) => setShippingData({
-                ...shippingData, 
-                consignee: { ...shippingData.consignee, email: e.target.value }
-              })}
-              placeholder="Email del destinatario"
+              name="recipientEmail"
+              value={formData.recipientEmail}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              placeholder="destinatario@ejemplo.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ciudad *
+            </label>
+            <input
+              type="text"
+              name="recipientCity"
+              value={formData.recipientCity}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              placeholder="Ciudad del destinatario"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dirección Completa *
+            </label>
+            <textarea
+              name="recipientAddress"
+              value={formData.recipientAddress}
+              onChange={handleInputChange}
+              required
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none"
+              placeholder="Dirección completa del destinatario"
             />
           </div>
         </div>
       </div>
 
-      {/* Información de Paquetes */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center">
-            <Package className="h-5 w-5 mr-2 text-purple-600" />
-            Información de Paquetes
-          </h3>
-          <button
-            onClick={addPackage}
-            className="flex items-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Agregar Paquete
-          </button>
+      {/* Información del Paquete */}
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <Package className="w-5 h-5" />
+          Información del Paquete
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tipo de Paquete
+            </label>
+            <select
+              name="packageType"
+              value={formData.packageType}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all appearance-none bg-white"
+            >
+              <option value="package">Paquete</option>
+              <option value="document">Documento</option>
+              <option value="fragile">Frágil</option>
+              <option value="liquid">Líquido</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+              <Scale className="w-4 h-4" />
+              Peso (kg) *
+            </label>
+            <input
+              type="number"
+              name="weight"
+              value={formData.weight}
+              onChange={handleInputChange}
+              step="0.1"
+              min="0"
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="0.0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+              <Ruler className="w-4 h-4" />
+              Largo (cm)
+            </label>
+            <input
+              type="number"
+              name="length"
+              value={formData.length}
+              onChange={handleInputChange}
+              min="0"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ancho (cm)
+            </label>
+            <input
+              type="number"
+              name="width"
+              value={formData.width}
+              onChange={handleInputChange}
+              min="0"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Alto (cm)
+            </label>
+            <input
+              type="number"
+              name="height"
+              value={formData.height}
+              onChange={handleInputChange}
+              min="0"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+              <DollarSign className="w-4 h-4" />
+              Valor Declarado (₡)
+            </label>
+            <input
+              type="number"
+              name="declaredValue"
+              value={formData.declaredValue}
+              onChange={handleInputChange}
+              min="0"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="0"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Contenido del Paquete *
+            </label>
+            <input
+              type="text"
+              name="contents"
+              value={formData.contents}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="Descripción del contenido"
+            />
+          </div>
         </div>
 
-        <div className="space-y-4">
-          {packages.map((pkg, index) => (
-            <div key={pkg.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900">Paquete {index + 1}</h4>
-                {packages.length > 1 && (
-                  <button
-                    onClick={() => removePackage(pkg.id)}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
+        {/* Cálculos */}
+        {(formData.length > 0 && formData.width > 0 && formData.height > 0) && (
+          <div className="mt-6 p-4 bg-white/50 rounded-xl">
+            <h4 className="font-medium text-gray-700 mb-2">Cálculos Automáticos:</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Volumen:</span>
+                <p className="font-medium">{calculateVolume().toLocaleString()} cm³</p>
               </div>
+              <div>
+                <span className="text-gray-600">Peso Volumétrico:</span>
+                <p className="font-medium">{calculateVolumetricWeight().toFixed(2)} kg</p>
+              </div>
+              <div>
+                <span className="text-gray-600">Peso a Cobrar:</span>
+                <p className="font-medium">{Math.max(formData.weight, calculateVolumetricWeight()).toFixed(2)} kg</p>
+              </div>
+              <div>
+                <span className="text-gray-600">Costo Estimado:</span>
+                <p className="font-medium text-green-600">₡{calculateShippingCost().toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción del Contenido
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={pkg.description}
-                    onChange={(e) => updatePackage(pkg.id, 'description', e.target.value)}
-                    placeholder="Descripción detallada del contenido"
-                  />
-                </div>
+      {/* Servicio y Opciones */}
+      <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-2xl p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <Truck className="w-5 h-5" />
+          Servicio y Opciones
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tipo de Servicio
+            </label>
+            <select
+              name="serviceType"
+              value={formData.serviceType}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all appearance-none bg-white"
+            >
+              <option value="economy">Económico (3-5 días)</option>
+              <option value="standard">Estándar (1-2 días)</option>
+              <option value="express">Express (24 horas)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              Fecha de Entrega
+            </label>
+            <input
+              type="date"
+              name="deliveryDate"
+              value={formData.deliveryDate}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Instrucciones Especiales
+            </label>
+            <textarea
+              name="specialInstructions"
+              value={formData.specialInstructions}
+              onChange={handleInputChange}
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all resize-none"
+              placeholder="Instrucciones especiales para la entrega"
+            />
+          </div>
+        </div>
+
+        {/* Opciones adicionales */}
+        <div className="mt-6 space-y-3">
+          <h4 className="font-medium text-gray-700">Opciones Adicionales:</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="insurance"
+                checked={formData.insurance}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-orange-600 rounded"
+              />
+              <span className="text-sm text-gray-700">Seguro (1% del valor declarado)</span>
+            </label>
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="signatureRequired"
+                checked={formData.signatureRequired}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-orange-600 rounded"
+              />
+              <span className="text-sm text-gray-700">Firma requerida (+₡2,000)</span>
+            </label>
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="cashOnDelivery"
+                checked={formData.cashOnDelivery}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-orange-600 rounded"
+              />
+              <span className="text-sm text-gray-700">Contra entrega (+₡3,000)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Botón de envío */}
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Creando Guía...
+            </>
+          ) : (
+            <>
+              <Send className="w-5 h-5" />
+              Crear Guía de Envío
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderPackagesList = () => (
+    <div className="space-y-6">
+      {/* Barra de búsqueda */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por número de tracking, remitente o destinatario..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          />
+        </div>
+        <button
+          onClick={() => setActiveTab('create')}
+          className="px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl hover:from-green-600 hover:to-teal-700 transition-all flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          Nueva Guía
+        </button>
+      </div>
+
+      {/* Lista de paquetes */}
+      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Tracking</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Remitente</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Destinatario</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Destino</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Peso</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Servicio</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Estado</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Costo</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredPackages.map((pkg) => (
+                <tr key={pkg.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <QrCode className="w-4 h-4 text-gray-400" />
+                      <span className="font-mono text-sm font-medium text-blue-600">
+                        {pkg.trackingNumber}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{pkg.senderName}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{pkg.recipientName}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{pkg.recipientCity}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{pkg.weight} kg</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{pkg.serviceType}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(pkg.status)}`}>
+                      {getStatusText(pkg.status)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-green-600">
+                    ₡{pkg.cost.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => alert(`Ver detalles de ${pkg.trackingNumber}`)}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver detalles"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => alert(`Editar ${pkg.trackingNumber}`)}
+                        className="p-1 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`¿Eliminar ${pkg.trackingNumber}?`)) {
+                            setPackages(prev => prev.filter(p => p.id !== pkg.id));
+                          }
+                        }}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredPackages.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              {searchTerm ? 'No se encontraron resultados' : 'No hay paquetes registrados'}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {searchTerm 
+                ? 'Intenta con otros términos de búsqueda' 
+                : 'Crea tu primera guía de envío para comenzar'
+              }
+            </p>
+            {!searchTerm && (
+              <button
+                onClick={() => setActiveTab('create')}
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all flex items-center gap-2 mx-auto"
+              >
+                <Plus className="w-5 h-5" />
+                Crear Primera Guía
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Estadísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm">Total Paquetes</p>
+              <p className="text-3xl font-bold">{packages.length}</p>
+            </div>
+            <Package className="w-8 h-8 text-blue-200" />
+          </div>
+        </div>
+        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-yellow-100 text-sm">Pendientes</p>
+              <p className="text-3xl font-bold">
+                {packages.filter(p => p.status === 'pending').length}
+              </p>
+            </div>
+            <Clock className="w-8 h-8 text-yellow-200" />
+          </div>
+        </div>
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm">En Tránsito</p>
+              <p className="text-3xl font-bold">
+                {packages.filter(p => p.status === 'in_transit').length}
+              </p>
+            </div>
+            <Truck className="w-8 h-8 text-purple-200" />
+          </div>
+        </div>
+        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm">Entregados</p>
+              <p className="text-3xl font-bold">
+                {packages.filter(p => p.status === 'delivered').length}
+              </p>
+            </div>
+            <Package className="w-8 h-8 text-green-200" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTracking = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="text-center">
+          <QrCode className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">Seguimiento de Paquetes</h3>
+          <p className="text-gray-600 mb-8">
+            Ingresa el número de tracking para seguir tu paquete en tiempo real
+          </p>
+          
+          <div className="max-w-md mx-auto">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Número de tracking (ej: ITB001234567)"
+                className="w-full pl-12 pr-4 py-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-center font-mono"
+              />
+            </div>
+            <button className="w-full mt-4 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all font-medium">
+              Buscar Paquete
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Ejemplo de tracking */}
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <h4 className="text-lg font-semibold text-gray-800 mb-4">Paquetes Recientes</h4>
+        <div className="space-y-3">
+          {packages.slice(0, 3).map((pkg) => (
+            <div key={pkg.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <QrCode className="w-5 h-5 text-gray-400" />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cantidad
-                  </label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={pkg.quantity}
-                    onChange={(e) => updatePackage(pkg.id, 'quantity', e.target.value)}
-                    min="1"
-                    placeholder="1"
-                  />
+                  <p className="font-mono text-sm font-medium text-blue-600">{pkg.trackingNumber}</p>
+                  <p className="text-sm text-gray-600">{pkg.recipientName} - {pkg.recipientCity}</p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <Scale className="h-4 w-4 mr-1" />
-                    Peso (Lb)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={pkg.weight}
-                    onChange={(e) => updatePackage(pkg.id, 'weight', e.target.value)}
-                    placeholder="0.0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <Ruler className="h-4 w-4 mr-1" />
-                    Largo (in)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={pkg.length}
-                    onChange={(e) => updatePackage(pkg.id, 'length', e.target.value)}
-                    placeholder="0.0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ancho (in)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={pkg.width}
-                    onChange={(e) => updatePackage(pkg.id, 'width', e.target.value)}
-                    placeholder="0.0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Alto (in)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={pkg.height}
-                    onChange={(e) => updatePackage(pkg.id, 'height', e.target.value)}
-                    placeholder="0.0"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Volumen (CF) - Calculado
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                    value={pkg.volume}
-                    readOnly
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Valor Declarado ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={pkg.declaredValue}
-                    onChange={(e) => updatePackage(pkg.id, 'declaredValue', e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
+              <div className="text-right">
+                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(pkg.status)}`}>
+                  {getStatusText(pkg.status)}
+                </span>
+                <p className="text-sm text-gray-500 mt-1">{pkg.createdAt}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
+    </div>
+  );
 
-      {/* Cálculo de Tarifas */}
-      {calculatedRate && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-            <Calculator className="h-5 w-5 mr-2 text-green-600" />
-            Cálculo de Tarifas
-          </h3>
-          
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-2xl font-bold text-blue-600">{calculatedRate.weight} Lb</div>
-                <div className="text-sm text-gray-500">Peso Total</div>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-2xl font-bold text-blue-600">${calculatedRate.rate}</div>
-                <div className="text-sm text-gray-500">Tarifa/Lb</div>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-2xl font-bold text-blue-600">${calculatedRate.subtotal.toFixed(2)}</div>
-                <div className="text-sm text-gray-500">Subtotal</div>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-2xl font-bold text-blue-600">${calculatedRate.insurance.toFixed(2)}</div>
-                <div className="text-sm text-gray-500">Seguro (1%)</div>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-2xl font-bold text-blue-600">${calculatedRate.handling}</div>
-                <div className="text-sm text-gray-500">Manejo</div>
-              </div>
-              <div className="bg-green-100 rounded-lg p-3 shadow-sm border-2 border-green-200">
-                <div className="text-3xl font-bold text-green-600">
-                  ${calculatedRate.total.toFixed(2)}
-                </div>
-                <div className="text-sm text-green-700 font-medium">Total</div>
-              </div>
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Módulo de Envíos</h1>
+          <p className="text-gray-600">Gestiona guías, paquetes y seguimiento</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-2">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setActiveTab('create')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+              activeTab === 'create'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Plus className="w-5 h-5" />
+              Crear Guía
             </div>
-          </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+              activeTab === 'list'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <FileText className="w-5 h-5" />
+              Lista de Paquetes
+              {packages.length > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {packages.length}
+                </span>
+              )}
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('tracking')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+              activeTab === 'tracking'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Search className="w-5 h-5" />
+              Tracking
+            </div>
+          </button>
         </div>
-      )}
+      </div>
 
-      {/* Botones de Acción */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col sm:flex-row gap-3 justify-end">
-          <button className="flex items-center justify-center px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
-            <Printer className="h-4 w-4 mr-2" />
-            Vista Previa
-          </button>
-          <button className="flex items-center justify-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-            <Save className="h-4 w-4 mr-2" />
-            Crear Guía
-          </button>
-        </div>
+      {/* Content */}
+      <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-8">
+        <form onSubmit={handleSubmit}>
+          {activeTab === 'create' && renderCreateForm()}
+        </form>
+        {activeTab === 'list' && renderPackagesList()}
+        {activeTab === 'tracking' && renderTracking()}
       </div>
     </div>
   );
