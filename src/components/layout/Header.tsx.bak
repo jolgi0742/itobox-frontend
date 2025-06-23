@@ -1,0 +1,569 @@
+import React, { useState } from 'react';
+import { 
+  Search, Bell, User, ChevronDown, Menu, LogOut, 
+  Settings, HelpCircle, Package
+} from 'lucide-react';
+
+interface HeaderProps {
+  onMenuClick: () => void;
+  sidebarCollapsed: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onMenuClick, sidebarCollapsed }) => {
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+
+  // Mock notifications
+  const notifications = [
+    {
+      id: 1,
+      title: 'Nueva guía creada',
+      message: 'DEM125 para Venezuela',
+      time: '5 min',
+      unread: true,
+      type: 'success'
+    },
+    {
+      id: 2,
+      title: 'Paquete recibido',
+      message: 'DEM124 en almacén',
+      time: '15 min',
+      unread: true,
+      type: 'info'
+    },
+    {
+      id: 3,
+      title: 'Consolidación cerrada',
+      message: 'CON-VEN-001 lista para envío',
+      time: '1 hora',
+      unread: false,
+      type: 'warning'
+    }
+  ];
+
+  const unreadCount = notifications.filter(n => n.unread).length;
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchValue.trim()) {
+      // Implementar lógica de búsqueda
+      console.log('Buscando:', searchValue);
+    }
+  };
+
+  const handleLogout = () => {
+    // Implementar lógica de logout
+    console.log('Cerrando sesión...');
+  };
+
+  return (
+    <header className="header" style={{
+      background: 'var(--white)',
+      padding: '1rem 1.5rem',
+      borderBottom: '1px solid var(--gray-200)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      boxShadow: 'var(--shadow-sm)',
+      position: 'relative',
+      zIndex: 30
+    }}>
+      <style>{`
+        .header {
+          height: 64px;
+        }
+
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .menu-button {
+          display: none;
+          padding: 0.5rem;
+          border: 1px solid var(--gray-300);
+          background: var(--white);
+          border-radius: var(--border-radius);
+          cursor: pointer;
+          color: var(--gray-600);
+          transition: all 0.2s ease;
+        }
+
+        .menu-button:hover {
+          background-color: var(--gray-50);
+          border-color: var(--gray-400);
+        }
+
+        @media (max-width: 768px) {
+          .menu-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+        }
+
+        .breadcrumb {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .breadcrumb-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--gray-900);
+          margin: 0;
+        }
+
+        .header-right {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .search-form {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .search-input {
+          padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+          border: 1px solid var(--gray-300);
+          border-radius: var(--border-radius);
+          font-size: 0.875rem;
+          width: 250px;
+          transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+          outline: none;
+          border-color: var(--primary-500);
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-icon {
+          position: absolute;
+          left: 0.75rem;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--gray-400);
+          pointer-events: none;
+        }
+
+        @media (max-width: 640px) {
+          .search-input {
+            width: 180px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .search-form {
+            display: none;
+          }
+        }
+
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .notification-button {
+          position: relative;
+          padding: 0.5rem;
+          border: 1px solid var(--gray-300);
+          background: var(--white);
+          border-radius: var(--border-radius);
+          cursor: pointer;
+          color: var(--gray-600);
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .notification-button:hover {
+          background-color: var(--gray-50);
+          border-color: var(--gray-400);
+        }
+
+        .notification-badge {
+          position: absolute;
+          top: -2px;
+          right: -2px;
+          width: 18px;
+          height: 18px;
+          background-color: #ef4444;
+          color: var(--white);
+          border-radius: 50%;
+          font-size: 0.75rem;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 2px solid var(--white);
+        }
+
+        .user-menu-button {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 0.75rem;
+          border: 1px solid var(--gray-300);
+          background: var(--white);
+          border-radius: var(--border-radius);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .user-menu-button:hover {
+          background-color: var(--gray-50);
+          border-color: var(--gray-400);
+        }
+
+        .user-avatar {
+          width: 32px;
+          height: 32px;
+          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--white);
+          font-size: 0.75rem;
+          font-weight: 700;
+        }
+
+        .user-info {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .user-name {
+          font-size: 0.875rem;
+          color: var(--gray-900);
+          font-weight: 600;
+          line-height: 1;
+        }
+
+        .user-role {
+          font-size: 0.75rem;
+          color: var(--gray-500);
+          line-height: 1;
+        }
+
+        @media (max-width: 640px) {
+          .user-info {
+            display: none;
+          }
+        }
+
+        .dropdown {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          margin-top: 0.5rem;
+          background: var(--white);
+          border: 1px solid var(--gray-200);
+          border-radius: var(--border-radius-lg);
+          box-shadow: var(--shadow-lg);
+          min-width: 220px;
+          z-index: 1000;
+          overflow: hidden;
+        }
+
+        .dropdown-header {
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid var(--gray-200);
+          background-color: var(--gray-50);
+        }
+
+        .dropdown-header-title {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--gray-900);
+          margin: 0;
+        }
+
+        .dropdown-item {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1rem;
+          border: none;
+          background: var(--white);
+          cursor: pointer;
+          font-size: 0.875rem;
+          color: var(--gray-700);
+          text-align: left;
+          transition: background-color 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+          background-color: var(--gray-50);
+        }
+
+        .dropdown-item.danger {
+          color: #dc2626;
+        }
+
+        .dropdown-item.danger:hover {
+          background-color: #fef2f2;
+        }
+
+        .dropdown-divider {
+          height: 1px;
+          background-color: var(--gray-200);
+          margin: 0.5rem 0;
+        }
+
+        .notification-item {
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid var(--gray-100);
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+        }
+
+        .notification-item:hover {
+          background-color: var(--gray-50);
+        }
+
+        .notification-item:last-child {
+          border-bottom: none;
+        }
+
+        .notification-item.unread {
+          background-color: #eff6ff;
+          border-left: 3px solid var(--primary-500);
+        }
+
+        .notification-content {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.5rem;
+        }
+
+        .notification-text {
+          flex: 1;
+        }
+
+        .notification-title {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--gray-900);
+          margin: 0 0 0.25rem 0;
+        }
+
+        .notification-message {
+          font-size: 0.75rem;
+          color: var(--gray-600);
+          margin: 0;
+        }
+
+        .notification-time {
+          font-size: 0.75rem;
+          color: var(--gray-500);
+          white-space: nowrap;
+        }
+
+        .notification-badge-dot {
+          width: 8px;
+          height: 8px;
+          background-color: var(--primary-500);
+          border-radius: 50%;
+          margin-top: 0.25rem;
+        }
+
+        /* Overlay para cerrar dropdowns */
+        .dropdown-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 999;
+        }
+      `}</style>
+
+      {/* Left Section */}
+      <div className="header-left">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={onMenuClick}
+          className="menu-button"
+          aria-label="Abrir menú"
+        >
+          <Menu size={20} />
+        </button>
+
+        {/* Breadcrumb */}
+        <div className="breadcrumb">
+          <h1 className="breadcrumb-title">
+            {(() => {
+              const path = window.location.pathname;
+              if (path === '/dashboard') return 'Dashboard';
+              if (path === '/shipping') return 'Envíos';
+              if (path === '/warehouse') return 'Almacén';
+              if (path === '/consolidation') return 'Consolidación';
+              if (path === '/documents') return 'Documentos';
+              if (path === '/rates') return 'Tarifas';
+              if (path === '/clients') return 'Clientes';
+              if (path === '/packages') return 'Paquetes';
+              if (path === '/couriers') return 'Couriers';
+              if (path === '/reports') return 'Reportes';
+              if (path === '/settings') return 'Configuración';
+              return 'ITOBOX Courier';
+            })()}
+          </h1>
+        </div>
+      </div>
+
+      {/* Right Section */}
+      <div className="header-right">
+        {/* Search */}
+        <form onSubmit={handleSearch} className="search-form">
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Buscar tracking..."
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            className="search-input"
+          />
+        </form>
+
+        {/* Header Actions */}
+        <div className="header-actions">
+          {/* Notifications */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              className="notification-button"
+              aria-label="Notificaciones"
+            >
+              <Bell size={16} />
+              {unreadCount > 0 && (
+                <span className="notification-badge">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {notificationsOpen && (
+              <>
+                <div 
+                  className="dropdown-overlay"
+                  onClick={() => setNotificationsOpen(false)}
+                />
+                <div className="dropdown">
+                  <div className="dropdown-header">
+                    <h3 className="dropdown-header-title">
+                      Notificaciones ({unreadCount} nuevas)
+                    </h3>
+                  </div>
+                  <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    {notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`notification-item ${notification.unread ? 'unread' : ''}`}
+                      >
+                        <div className="notification-content">
+                          <div className="notification-text">
+                            <h4 className="notification-title">
+                              {notification.title}
+                            </h4>
+                            <p className="notification-message">
+                              {notification.message}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                            <span className="notification-time">
+                              {notification.time}
+                            </span>
+                            {notification.unread && (
+                              <div className="notification-badge-dot" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="dropdown-item" style={{ borderTop: '1px solid var(--gray-200)' }}>
+                    <span style={{ width: '100%', textAlign: 'center', color: 'var(--primary-600)' }}>
+                      Ver todas las notificaciones
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* User Menu */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="user-menu-button"
+            >
+              <div className="user-avatar">
+                AD
+              </div>
+              <div className="user-info">
+                <span className="user-name">Admin</span>
+                <span className="user-role">Administrador</span>
+              </div>
+              <ChevronDown size={14} color="var(--gray-500)" />
+            </button>
+
+            {userMenuOpen && (
+              <>
+                <div 
+                  className="dropdown-overlay"
+                  onClick={() => setUserMenuOpen(false)}
+                />
+                <div className="dropdown">
+                  <div className="dropdown-header">
+                    <h3 className="dropdown-header-title">Administrador</h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--gray-600)' }}>
+                      admin@itobox.com
+                    </p>
+                  </div>
+                  
+                  <button className="dropdown-item">
+                    <User size={16} />
+                    Mi Perfil
+                  </button>
+                  
+                  <button className="dropdown-item">
+                    <Settings size={16} />
+                    Configuración
+                  </button>
+                  
+                  <button className="dropdown-item">
+                    <HelpCircle size={16} />
+                    Ayuda y Soporte
+                  </button>
+                  
+                  <div className="dropdown-divider" />
+                  
+                  <button 
+                    onClick={handleLogout}
+                    className="dropdown-item danger"
+                  >
+                    <LogOut size={16} />
+                    Cerrar Sesión
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};

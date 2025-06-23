@@ -1,0 +1,308 @@
+C:\ITOBOX Courier\itobox-improved\itobox-frontend
+|    - copia (2).env
+|    - copia.env
+|   .env
+|   .gitignore
+|   craco.config.js
+|   dockerfile
+|   package-lock.json
+|   package.json
+|   README.md
+|   src.7z
+|   tree.txt
+|   tsconfig.json
+|   
++---node_modules
+|                       
++---public
+|       favicon.ico
+|       index.html
+|       logo192.png
+|       logo512.png
+|       manifest.json
+|       robots.txt
+|       
+\---src
+    |   App.legacy.js
+    |   App.tsx
+    |   index.css
+    |   index.tsx
+    |   react-app-env.d.ts
+    |   reportWebVitals.ts
+    |   tailwind.config.js
+    |   
+    +----p
+    +---assets
+    |   +---icons
+    |   \---images
+    +---components
+    |   |   LoginForm.tsx.txt
+    |   |   
+    |   +---admin
+    |   +---charts
+    |   +---clients
+    |   +---common
+    |   +---courier
+    |   |       ConsolidationModule.tsx
+    |   |       DocumentsModule.tsx
+    |   |       RatesModule.tsx
+    |   |       ShippingModule.tsx
+    |   |       WarehouseModule.tsx
+    |   |       
+    |   +---forms
+    |   +---layout
+    |   |       Breadcrumbs.tsx
+    |   |       ErrorBoundary.tsx
+    |   |       Header.tsx
+    |   |       index.ts
+    |   |       LoadingScreen.tsx
+    |   |       MainLayout.tsx
+    |   |       PageHeader.tsx
+    |   |       Sidebar - copia.tsx
+    |   |       sidebar.tsx
+    |   |       ToastContainer.tsx
+    |   |       
+    |   +---packages
+    |   +---tracking
+    |   |       PackageManager.jsx
+    |   |       PublicTracking.jsx
+    |   |       
+    |   +---ui
+    |   |       Alert.tsx
+    |   |       Badge.tsx
+    |   |       Button.tsx
+    |   |       Card.tsx
+    |   |       cn.ts
+    |   |       index.ts
+    |   |       Input.tsx
+    |   |       LoadingSpinner.tsx
+    |   |       MetricCard.tsx
+    |   |       Modal.tsx
+    |   |       Pagination.tsx
+    |   |       Select.tsx
+    |   |       Table.tsx
+    |   |       
+    |   \---utils
+    |           cn.ts
+    |           constants.js
+    |           
+    +---constants
+    +---contexts
+    |       AppContext.tsx
+    |       AuthContext.tsx
+    |       index.tsx
+    |       LanguageContext.tsx
+    |       NotificationContext.tsx
+    |       ThemeContext.tsx
+    |       
+    +---hooks
+    |       index.ts
+    |       useApi.ts
+    |       useAuth.ts
+    |       useAuth.tsx
+    |       useDashboard.ts
+    |       useDashboardData.ts
+    |       useDebounce.ts
+    |       useForm.ts
+    |       useLocalStorage.ts
+    |       useNotifications.ts
+    |       usePackages.ts
+    |       useWebSocket.ts
+    |       
+    +---modules
+    |   +---admin
+    |   |   \---components
+    |   |           NotificationSystem.tsx
+    |   |           
+    |   +---auth
+    |   |   |   index.ts
+    |   |   |   
+    |   |   +---components
+    |   |   |       AuthLayout.tsx
+    |   |   |       ForgotPasswordForm.tsx
+    |   |   |       LoginForm.tsx
+    |   |   |       PublicRoute.tsx
+    |   |   |       RegisterForm.tsx
+    |   |   |       RoleGuard.tsx
+    |   |   |       
+    |   |   +---hooks
+    |   |   |       Hook useForm.ts.txt
+    |   |   |       
+    |   |   +---pages
+    |   |   |       ForgotPasswordPage.tsx
+    |   |   |       LoginPage.tsx
+    |   |   |       Register.tsx.txt
+    |   |   |       RegisterPage.tsx
+    |   |   |       
+    |   |   +---services
+    |   |   \---types
+    |   +---billing
+    |   |   |   index.ts
+    |   |   |   
+    |   |   +---components
+    |   |   |       BillingModule.tsx
+    |   |   |       
+    |   |   +---pages
+    |   |   |       BillingPage.tsx
+    |   |   |       
+    |   |   \---services
+    |   |           billingService.ts
+    |   |           
+    |   +---client-portal
+    |   |   |   index.ts
+    |   |   |   
+    |   |   +---components
+    |   |   |       ClientDashboard.tsx
+    |   |   |       
+    |   |   \---pages
+    |   |           ClientPortalPage.tsx
+    |   |           
+    |   +---clients
+    |   |   |   index.ts
+    |   |   |   
+    |   |   +---components
+    |   |   |       ClientDetails.tsx
+    |   |   |       ClientForm.tsx
+    |   |   |       ClientRegistration.tsx
+    |   |   |       ClientRegistrationModule.tsx
+    |   |   |       ClientTable.tsx
+    |   |   |       
+    |   |   +---hooks
+    |   |   |       useClients.ts
+    |   |   |       
+    |   |   \---pages
+    |   |           ClientRegistrationPage.tsx
+    |   |           ClientsPage.tsx
+    |   |           
+    |   +---courier
+    |   |   +---components
+    |   |   |       ConsolidationModule.tsx
+    |   |   |       DocumentsModule.tsx
+    |   |   |       RatesModule.tsx
+    |   |   |       ShippingModule.tsx
+    |   |   |       WarehouseModule.tsx
+    |   |   |       
+    |   |   \---pages
+    |   |           ConsolidationPage.tsx
+    |   |           DocumentsPage.tsx
+    |   |           RatesPage.tsx
+    |   |           ShippingPage.tsx
+    |   |           WarehousePage.tsx
+    |   |           
+    |   +---couriers
+    |   |   \---pages
+    |   |           CouriersPage.tsx
+    |   |           
+    |   +---dashboard
+    |   |   |   index.ts
+    |   |   |   
+    |   |   +---components
+    |   |   |       MetricCard.tsx
+    |   |   |       Nuevo Documento de texto.txt
+    |   |   |       PackageStatusChart.tsx
+    |   |   |       QuickActions.tsx
+    |   |   |       RecentActivity.tsx
+    |   |   |       RevenueChart.tsx
+    |   |   |       SystemAlerts.tsx
+    |   |   |       
+    |   |   +---hooks
+    |   |   |       useDashboardData.ts
+    |   |   |       
+    |   |   \---pages
+    |   |           DashboardPage.tsx
+    |   |           
+    |   +---packages
+    |   |   |   index.ts
+    |   |   |   
+    |   |   +---components
+    |   |   |       PackageDetails.tsx
+    |   |   |       PackageFilters.tsx
+    |   |   |       PackageForm.tsx
+    |   |   |       PackageTable.tsx
+    |   |   |       
+    |   |   \---pages
+    |   |           PackagesPage.tsx
+    |   |           
+    |   +---reports
+    |   |   \---pages
+    |   |           ReportsPage.tsx
+    |   |           
+    |   +---settings
+    |   |   \---pages
+    |   |           SettingsPage.tsx
+    |   |           
+    |   \---tracking
+    |       |   index.ts
+    |       |   
+    |       +---components
+    |       |       TrackingMap.tsx
+    |       |       TrackingSearch.tsx
+    |       |       TrackingTimeline.tsx
+    |       |       
+    |       +---hooks
+    |       |       useTracking.ts
+    |       |       
+    |       \---pages
+    |               TrackingPage.tsx
+    |               
+    +---pages
+    |       CourierDashboard.tsx
+    |       LoginPage.tsx
+    |       Register.tsx
+    |       
+    +---services
+    |   |   apiClient.ts
+    |   |   apiService.ts
+    |   |   authService.ts
+    |   |   index.ts
+    |   |   Nuevo Documento de texto.txt
+    |   |   
+    |   +---api
+    |   |       apiClient.ts
+    |   |       clientService.ts
+    |   |       packageService.ts
+    |   |       
+    |   +---auth
+    |   |       authService - copia.ts
+    |   |       authService.ts
+    |   |       
+    |   +---billing
+    |   |       billingService.ts
+    |   |       
+    |   +---client
+    |   |       clientPortalService.ts
+    |   |       
+    |   +---dashboard
+    |   |       dashboardService.ts
+    |   |       
+    |   +---file
+    |   |       fileService.ts
+    |   |       
+    |   +---notifications
+    |   |       notificationService.ts
+    |   |       
+    |   +---tracking
+    |   |       trackingService.ts
+    |   |       
+    |   \---utils
+    |           storageService.ts
+    |           validationService.ts
+    |           
+    +---sistema
+    +---styles
+    |       globals.css
+    |       improvements.css
+    |       
+    +---types
+    |       api.ts
+    |       courier.ts
+    |       index.ts
+    |       
+    +---utils
+    |       cn.ts
+    |       constants.jsx
+    |       
+    \---_tets_
+        +---components
+        +---hooks
+        \---services
