@@ -1,6 +1,8 @@
 // src/services/warehouseService.ts - Compatible con métodos estáticos
 
-const API_BASE_URL = 'http://localhost:5000/api/warehouse';
+const API_BASE_URL = process.env.REACT_APP_API_URL ? 
+  `${process.env.REACT_APP_API_URL}/warehouse` : 
+  'http://localhost:5000/api/warehouse';
 
 // Interfaces compatibles con archivos existentes
 export interface WHRPackage {
