@@ -1,4 +1,6 @@
-// Navegación
+// src/contexts/index.tsx - EXPORTS ACTUALIZADOS
+
+// Navegación (ACTUALIZADO)
 export {
   NavigationProvider,
   useNavigation
@@ -12,5 +14,23 @@ export {
 } from './AuthContext';
 export { default as AuthContext } from './AuthContext';
 
-// Notificaciones (si existe)
-// export { NotificationProvider, useNotifications } from './NotificationContext';
+// Tema
+export {
+  ThemeProvider,
+  useTheme
+} from './ThemeContext';
+
+// Idioma
+export {
+  LanguageProvider,
+  useLanguage,
+  type SupportedLanguage
+} from './LanguageContext';
+
+// Notificaciones
+export {
+  NotificationProvider,
+  useNotification,
+  type Notification,
+  type NotificationContextType
+} from './NotificationContext';

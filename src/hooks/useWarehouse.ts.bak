@@ -1,0 +1,286 @@
+// src/hooks/useWarehouse.ts - FIXED Hook for WAREHOUSE-USA
+
+import { useState, useEffect, useCallback } from 'react';
+import {
+  WarehouseService,
+  WHRCreateData,
+  WHRResponse,
+  WHRStats,
+  WHRListResponse,
+  WarehouseUtils
+} from '../services/warehouseService';
+
+interface UseWarehouseState {
+  whrs: WHRResponse[];
+  stats: WHRStats | null;
+  loading: boolean;
+  error: string | null;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+interface UseWarehouseFilters {
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const useWarehouse = (initialFilters: UseWarehouseFilters = {}) => {
+  const [state, setState] = useState<UseWarehouseState>({
+    whrs: [],
+    stats: null,
+    loading: false,
+    error: null,
+    pagination: {
+      page: 1,
+      limit: 20,
+      total: 0,
+      pages: 0
+    }
+  });
+
+  const [filters, setFilters] = useState<UseWarehouseFilters>(initialFilters);
+
+  // Load WHRs
+  const loadWHRs = useCallback(async (loadFilters: UseWarehouseFilters = filters) => {
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      
+      const response = await WarehouseService.listWHRs(loadFilters);
+      
+      if (response.success) {
+        setState(prev => ({
+          ...prev,
+          whrs: response.data.whrs,
+          pagination: response.data.pagination,
+          loading: false
+        }));
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Error loading WHRs',
+        loading: false
+      }));
+    }
+  }, [filters]);
+
+  // Load stats
+  const loadStats = useCallback(async () => {
+    try {
+      const response = await WarehouseService.getStats();
+      
+      if (response.success) {
+        setState(prev => ({
+          ...prev,
+          stats: response.data
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  }, []);
+
+  // Create WHR
+  const createWHR = useCallback(async (data: WHRCreateData) => {
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      
+      const response = await WarehouseService.createWHR(data);
+      
+      if (response.success) {
+        // Reload data
+        await loadWHRs();
+        await loadStats();
+        return response.data;
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Error creating WHR',
+        loading: false
+      }));
+      throw error;
+    }
+  }, [loadWHRs, loadStats]);
+
+  // Classify WHR
+  const classifyWHR = useCallback(async (id: number, classification: 'awb' | 'bl') => {
+    try {
+      const response = await WarehouseService.classifyWHR(id, classification);
+      
+      if (response.success) {
+        // Reload data
+        await loadWHRs();
+        await loadStats();
+        return response.data;
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Error classifying WHR'
+      }));
+      throw error;
+    }
+  }, [loadWHRs, loadStats]);
+
+  // Send email
+  const sendEmail = useCallback(async (id: number) => {
+    try {
+      const response = await WarehouseService.sendEmail(id);
+      
+      if (response.success) {
+        // Reload data
+        await loadWHRs();
+        return response.data;
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Error sending email'
+      }));
+      throw error;
+    }
+  }, [loadWHRs]);
+
+  // Delete WHR
+  const deleteWHR = useCallback(async (id: number) => {
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      
+      const response = await WarehouseService.deleteWHR(id);
+      
+      if (response.success) {
+        // Reload data
+        await loadWHRs();
+        await loadStats();
+        return true;
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Error deleting WHR',
+        loading: false
+      }));
+      throw error;
+    }
+  }, [loadWHRs, loadStats]);
+
+  // Update filters
+  const updateFilters = useCallback((newFilters: UseWarehouseFilters) => {
+    const updatedFilters = { ...filters, ...newFilters };
+    setFilters(updatedFilters);
+    loadWHRs(updatedFilters);
+  }, [filters, loadWHRs]);
+
+  // Clear error
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }));
+  }, []);
+
+  // Refresh all data
+  const refresh = useCallback(async () => {
+    await Promise.all([
+      loadWHRs(),
+      loadStats()
+    ]);
+  }, [loadWHRs, loadStats]);
+
+  // Load initial data
+  useEffect(() => {
+    loadWHRs();
+    loadStats();
+  }, [loadWHRs, loadStats]);
+
+  return {
+    // State
+    whrs: state.whrs,
+    stats: state.stats,
+    loading: state.loading,
+    error: state.error,
+    pagination: state.pagination,
+    filters,
+
+    // Actions
+    createWHR,
+    classifyWHR,
+    sendEmail,
+    deleteWHR,
+    updateFilters,
+    clearError,
+    refresh,
+
+    // Utils
+    utils: WarehouseUtils
+  };
+};
+
+// Hook específico para statistics
+export const useWarehouseStats = () => {
+  const [stats, setStats] = useState<WHRStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await WarehouseService.getStats();
+      
+      if (response.success) {
+        setStats(response.data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error loading stats');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  return {
+    stats,
+    loading,
+    error,
+    refresh: loadStats
+  };
+};
+
+// Hook for health check
+export const useWarehouseHealth = () => {
+  const [health, setHealth] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const checkHealth = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await WarehouseService.healthCheck();
+      setHealth(response);
+    } catch (error) {
+      console.error('Health check failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkHealth();
+  }, [checkHealth]);
+
+  return {
+    health,
+    loading,
+    refresh: checkHealth
+  };
+};
+
+export default useWarehouse;

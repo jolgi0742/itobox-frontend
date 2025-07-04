@@ -1,0 +1,393 @@
+// src/components/WarehouseTestStandalone.tsx - Test sin Layout
+
+import React, { useState, useEffect } from 'react';
+
+// Copiar estas interfaces aquí temporalmente
+interface WHRCreateData {
+  shipper: string;
+  consignee: string;
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
+  declaredValue?: number;
+  invoiceNumber?: string;
+  poNumber?: string;
+  carrier?: string;
+  partidaArancelaria?: string;
+  unitValue?: number;
+  estimatedArrivalCR?: string;
+  description?: string;
+  serviceType?: string;
+}
+
+interface WHRResponse {
+  id: number;
+  whrNumber: string;
+  shipper: string;
+  consignee: string;
+  weight: number;
+  volume: number;
+  volumeWeight: number;
+  chargeableWeight: number;
+  declaredValue: number;
+  status: string;
+  warehouseUSA: {
+    invoiceNumber?: string;
+    poNumber?: string;
+    carrier?: string;
+    partidaArancelaria?: string;
+    unitValue?: number;
+    estimatedArrivalCR?: string;
+  };
+  calculations: {
+    volume: string;
+    volumeWeight: string;
+    chargeableWeight: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface WHRStats {
+  totalWHRs: number;
+  pending: number;
+  inTransit: number;
+  delivered: number;
+  classifiedAWB: number;
+  classifiedBL: number;
+  totalDeclaredValue: number;
+  totalWeight: number;
+  warehouseUSA: {
+    withInvoice: number;
+    withPO: number;
+    withCarrier: number;
+    withPartida: number;
+    avgUnitValue: number;
+    withEstimatedArrival: number;
+    completionRate: number;
+  };
+  recentWHRs: Array<{
+    whrNumber: string;
+    shipper: string;
+    consignee: string;
+    invoiceNumber?: string;
+    carrier?: string;
+    status: string;
+    createdAt: string;
+  }>;
+}
+
+const WarehouseTestStandalone: React.FC = () => {
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [stats, setStats] = useState<WHRStats | null>(null);
+  const [whrs, setWhrs] = useState<WHRResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<string[]>([]);
+
+  const API_URL = 'http://localhost:5000/api/warehouse';
+
+  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
+    
+    return response.json();
+  };
+
+  const addTestResult = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setTestResults(prev => [...prev, `${timestamp}: ${message}`]);
+  };
+
+  // Test de conexión
+  const testConnection = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      addTestResult('🔍 Testing connection...');
+      
+      const health = await apiRequest('/health');
+      setHealthStatus(health);
+      addTestResult(`✅ Health Check: ${health.data.version}`);
+      
+      const statsResponse = await apiRequest('/stats');
+      setStats(statsResponse.data);
+      addTestResult(`✅ Stats: ${statsResponse.data.totalWHRs} WHRs`);
+      
+      const whrsResponse = await apiRequest('/whr?limit=5');
+      setWhrs(whrsResponse.data.whrs);
+      addTestResult(`✅ WHRs List: ${whrsResponse.data.whrs.length} items`);
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Error de conexión';
+      setError(errorMsg);
+      addTestResult(`❌ Error: ${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Test crear WHR
+  const testCreateWHR = async () => {
+    try {
+      setLoading(true);
+      addTestResult('📦 Creating test WHR...');
+      
+      const testData: WHRCreateData = {
+        shipper: 'FRONTEND TEST INC',
+        consignee: 'INTEGRATION TEST SA',
+        weight: 12.5,
+        length: 30,
+        width: 20,
+        height: 15,
+        declaredValue: 750,
+        invoiceNumber: 'FRONT-2024-001',
+        poNumber: 'INT-PO-123',
+        carrier: 'UPS',
+        partidaArancelaria: '8471.30.00',
+        unitValue: 75,
+        estimatedArrivalCR: '2024-12-28',
+        description: 'Test desde Frontend',
+        serviceType: 'express'
+      };
+
+      const result = await apiRequest('/whr', {
+        method: 'POST',
+        body: JSON.stringify(testData)
+      });
+      
+      addTestResult(`✅ Create WHR: ${result.data.whrNumber}`);
+      addTestResult(`📊 Volume: ${result.data.calculations.volume}`);
+      addTestResult(`🏷️ Invoice: ${result.data.warehouseUSA.invoiceNumber}`);
+      
+      // Refresh list
+      testConnection();
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Error creating WHR';
+      addTestResult(`❌ Create Error: ${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Test clasificación
+  const testClassification = async () => {
+    if (whrs.length === 0) {
+      addTestResult('❌ No hay WHRs para clasificar');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      addTestResult('🏷️ Testing classification...');
+      
+      const whr = whrs[0];
+      const classifyResult = await apiRequest(`/whr/${whr.id}/classify`, {
+        method: 'PUT',
+        body: JSON.stringify({ classification: 'awb' })
+      });
+      
+      addTestResult(`✅ Classify AWB: ${classifyResult.data.status}`);
+      
+      // Test email
+      const emailResult = await apiRequest(`/whr/${whr.id}/email`, {
+        method: 'POST'
+      });
+      
+      addTestResult(`📧 Email sent: ${emailResult.data.whrNumber}`);
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Error in classification';
+      addTestResult(`❌ Classification Error: ${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearResults = () => {
+    setTestResults([]);
+  };
+
+  useEffect(() => {
+    testConnection();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
+          <h1 className="text-3xl font-bold mb-2">🧪 WAREHOUSE-USA Frontend Integration Test</h1>
+          <p className="text-blue-100">Testing Frontend ↔ Backend Connection</p>
+          <div className="mt-2 text-sm opacity-75">URL: {API_URL}</div>
+        </div>
+
+        {/* Status Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Health Status */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">🏥 Health Status</h3>
+            {healthStatus ? (
+              <div className="space-y-2">
+                <div className="text-sm">
+                  <span className="font-medium">Version:</span> {healthStatus.data.version}
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Status:</span> 
+                  <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                    {healthStatus.data.status}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">WHRs:</span> {healthStatus.data.totalWHRs}
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-500">Testing connection...</div>
+            )}
+          </div>
+
+          {/* Statistics */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">📊 WAREHOUSE-USA Stats</h3>
+            {stats ? (
+              <div className="space-y-2">
+                <div className="text-sm">
+                  <span className="font-medium">Total WHRs:</span> {stats.totalWHRs}
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">With Invoice:</span> {stats.warehouseUSA.withInvoice}
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Completion:</span> {stats.warehouseUSA.completionRate}%
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Avg Value:</span> ${stats.warehouseUSA.avgUnitValue.toFixed(2)}
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-500">Loading stats...</div>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">⚡ Quick Actions</h3>
+            <div className="space-y-3">
+              <button
+                onClick={testConnection}
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                🔄 Refresh Data
+              </button>
+              <button
+                onClick={testCreateWHR}
+                disabled={loading}
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50"
+              >
+                📦 Create Test WHR
+              </button>
+              <button
+                onClick={testClassification}
+                disabled={loading || whrs.length === 0}
+                className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50"
+              >
+                🏷️ Test Classification
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* WHRs List */}
+        {whrs.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">📋 Recent WHRs</h3>
+            <div className="space-y-3">
+              {whrs.slice(0, 3).map((whr) => (
+                <div key={whr.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-semibold text-blue-600">{whr.whrNumber}</div>
+                      <div className="text-sm text-gray-600">
+                        {whr.shipper} → {whr.consignee}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {whr.warehouseUSA.carrier} | {whr.warehouseUSA.invoiceNumber}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium">
+                        {whr.calculations?.chargeableWeight || `${whr.chargeableWeight.toFixed(2)} kg`}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {whr.calculations?.volume || `${whr.volume.toFixed(4)} m³`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Test Results */}
+        <div className="bg-gray-900 rounded-lg p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-white">🧪 Test Results</h3>
+            <button
+              onClick={clearResults}
+              className="text-gray-400 hover:text-white text-sm"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="bg-gray-800 rounded-md p-4 max-h-60 overflow-y-auto">
+            {testResults.length > 0 ? (
+              <div className="space-y-1">
+                {testResults.map((result, index) => (
+                  <div key={index} className="text-sm font-mono text-gray-300">
+                    {result}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-gray-500 text-sm">No test results yet...</div>
+            )}
+          </div>
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="text-red-800 font-medium">❌ Error:</div>
+            <div className="text-red-600 text-sm mt-1">{error}</div>
+          </div>
+        )}
+
+        {/* Loading Overlay */}
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <div className="text-gray-700">Testing WAREHOUSE-USA integration...</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default WarehouseTestStandalone;

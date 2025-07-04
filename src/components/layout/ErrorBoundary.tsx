@@ -1,121 +1,73 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
 }
 
 interface State {
   hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
+  error?: Error;
+  errorInfo?: ErrorInfo;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null
-    };
+    this.state = { hasError: false };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error,
-      errorInfo: null
-    };
+    // Actualiza el state para mostrar la UI de error
+    return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    // Aquí puedes loggear el error a un servicio de reporte de errores
+    console.error('Error capturado por ErrorBoundary:', error, errorInfo);
     this.setState({
       error,
       errorInfo
     });
-
-    // Aquí puedes enviar el error a un servicio de logging
-    // logErrorToService(error, errorInfo);
   }
 
-  handleReload = () => {
-    window.location.reload();
-  };
-
-  handleGoHome = () => {
-    window.location.href = '/';
-  };
-
-  render() {
+  render(): ReactNode {
     if (this.state.hasError) {
-      // Si se proporciona un fallback personalizado, usarlo
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      // UI de error por defecto
+      // UI personalizada de error
       return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
-          <div className="max-w-md w-full">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-                <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div className="mt-3 text-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Algo salió mal
+              </h3>
+              <div className="mt-2">
+                <p className="text-sm text-gray-500">
+                  Ha ocurrido un error inesperado. Por favor, recarga la página.
+                </p>
               </div>
-              
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                ¡Ups! Algo salió mal
-              </h1>
-              
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Ha ocurrido un error inesperado en la aplicación. Esto puede ser temporal.
-              </p>
-
-              <div className="space-y-3">
+              <div className="mt-4">
                 <button
-                  onClick={this.handleReload}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+                  type="button"
+                  className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  onClick={() => window.location.reload()}
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
                   Recargar página
                 </button>
-                
-                <button
-                  onClick={this.handleGoHome}
-                  className="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium py-2 px-4 rounded-md transition-colors flex items-center justify-center"
-                >
-                  <Home className="h-4 w-4 mr-2" />
-                  Ir al inicio
-                </button>
               </div>
-
-              {/* Detalles técnicos (solo en desarrollo) */}
-              {process.env.NODE_ENV === 'development' && (
-                <details className="mt-6 text-left">
-                  <summary className="cursor-pointer text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                    Detalles técnicos
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <details className="mt-4 text-left">
+                  <summary className="text-sm font-medium text-gray-700 cursor-pointer">
+                    Detalles del error (desarrollo)
                   </summary>
-                  <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded text-xs">
-                    {this.state.error && (
-                      <div className="mb-2">
-                        <strong className="text-red-600 dark:text-red-400">Error:</strong>
-                        <pre className="mt-1 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                          {this.state.error.toString()}
-                        </pre>
-                      </div>
-                    )}
-                    {this.state.errorInfo && (
-                      <div>
-                        <strong className="text-red-600 dark:text-red-400">Stack Trace:</strong>
-                        <pre className="mt-1 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                          {this.state.errorInfo.componentStack}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
+                  <pre className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded overflow-auto">
+                    {this.state.error.toString()}
+                    {this.state.errorInfo && this.state.errorInfo.componentStack}
+                  </pre>
                 </details>
               )}
             </div>
@@ -128,10 +80,5 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-// Hook para usar en componentes funcionales
-export const useErrorHandler = () => {
-  return (error: Error, errorInfo?: ErrorInfo) => {
-    console.error('Error capturado:', error, errorInfo);
-    // Aquí puedes implementar lógica adicional como envío a servicios de logging
-  };
-};
+export { ErrorBoundary };
+export default ErrorBoundary;

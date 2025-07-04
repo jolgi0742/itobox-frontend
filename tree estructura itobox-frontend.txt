@@ -1,18 +1,52 @@
-C:\ITOBOX Courier\itobox-improved\itobox-frontend
+Listado de rutas de carpetas
+El número de serie del volumen es F627-5757
+C:.
 |   .env
+|   .env.local
+|   .env.production
 |   .gitignore
+|   build-production.sh
 |   craco.config.js
 |   dockerfile
+|   estructura itobox-frontend.txt
+|   fix-imports.js
+|   fix-null-errors.js
+|   package - copia.json
 |   package-lock.json
 |   package.json
+|   postcss.config.js
 |   README.md
 |   src.7z
+|   tailwind.config.js
 |   tree.txt
 |   tree869pm.txt
 |   tsconfig.json
+|   vercel.json
 |   
++---.vercel
+|       project.json
+|       README.txt
+|       
++---build
+|   |   asset-manifest.json
+|   |   favicon.ico
+|   |   index.html
+|   |   logo192.png
+|   |   logo512.png
+|   |   manifest.json
+|   |   robots.txt
+|   |   _redirects
+|   |   
+|   \---static
+|       +---css
+|       |       main.f481fa4c.css
+|       |       
+|       \---js
+|               main.c3e52e21.js
+|               main.c3e52e21.js.LICENSE.txt
+|               
 +---node_modules
-|   
+|           
 +---public
 |       favicon.ico
 |       index.html
@@ -20,15 +54,16 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
 |       logo512.png
 |       manifest.json
 |       robots.txt
+|       _redirects
 |       
 \---src
+    |   App.css
     |   App.legacy.js
     |   App.tsx
     |   index.css
     |   index.tsx
     |   react-app-env.d.ts
     |   reportWebVitals.ts
-    |   tailwind.config.js
     |   
     +----p
     +---assets
@@ -39,12 +74,11 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |   +---layout
     |   |       Breadcrumbs.tsx
     |   |       ErrorBoundary.tsx
-    |   |       Header.tsx
+    |   |       Header.tsx.bak
     |   |       index.ts
     |   |       LoadingScreen.tsx
     |   |       MainLayout.tsx
-    |   |       PageHeader.tsx
-    |   |       sidebar.tsx
+    |   |       Sidebar.tsx
     |   |       ToastContainer.tsx
     |   |       
     |   +---ui
@@ -53,12 +87,11 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |   |       Button.tsx
     |   |       Card.tsx
     |   |       cn.ts
-    |   |       index.ts
     |   |       Input.tsx
     |   |       LoadingSpinner.tsx
-    |   |       MetricCard.tsx
     |   |       Modal.tsx
     |   |       Pagination.tsx
+    |   |       SearchBar.tsx
     |   |       Select.tsx
     |   |       Table.tsx
     |   |       
@@ -66,12 +99,15 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |           cn.ts
     |           constants.js
     |           
+    +---config
+    |       config.ts
+    |       
     +---constants
     +---contexts
-    |       AppContext.tsx
     |       AuthContext.tsx
     |       index.tsx
     |       LanguageContext.tsx
+    |       NavigationContext.tsx
     |       NotificationContext.tsx
     |       ThemeContext.tsx
     |       
@@ -86,30 +122,20 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |       useLocalStorage.ts
     |       useNotifications.ts
     |       usePackages.ts
+    |       useWarehouse.ts
     |       useWebSocket.ts
     |       
     +---modules
-    |   |   CourierDashboard.tsx
-    |   |   
     |   +---admin
-    |   |   |   index.ts
-    |   |   |   
     |   |   +---components
-    |   |   |       NotificationSystem.tsx
-    |   |   |       
     |   |   \---services
-    |   |           notificationService.ts
-    |   |           
     |   +---auth
-    |   |   |   index.ts
-    |   |   |   
     |   |   +---components
     |   |   |       AuthLayout.tsx
     |   |   |       ForgotPasswordForm.tsx
     |   |   |       LoginForm.tsx
     |   |   |       PublicRoute.tsx
     |   |   |       RegisterForm.tsx
-    |   |   |       RoleGuard.tsx
     |   |   |       
     |   |   +---hooks
     |   |   +---pages
@@ -122,45 +148,17 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |   |   |       
     |   |   \---types
     |   +---billing
-    |   |   |   index.ts
-    |   |   |   
-    |   |   +---components
-    |   |   |       BillingModule.tsx
-    |   |   |       
-    |   |   +---pages
-    |   |   |       BillingPage.tsx
-    |   |   |       
-    |   |   \---services
-    |   |           billingService.ts
-    |   |           
-    |   +---client-portal
-    |   |   |   index.ts
-    |   |   |   
-    |   |   +---components
-    |   |   |       ClientDashboard.tsx
-    |   |   |       
     |   |   \---pages
-    |   |           ClientPortalPage.tsx
+    |   |           BillingDetailPage.tsx
+    |   |           BillingPage.tsx
     |   |           
     |   +---clients
-    |   |   |   index.ts
-    |   |   |   
-    |   |   +---components
-    |   |   |       ClientDetails.tsx
-    |   |   |       ClientForm.tsx
-    |   |   |       ClientRegistration.tsx
-    |   |   |       ClientRegistrationModule.tsx
-    |   |   |       ClientTable.tsx
-    |   |   |       
-    |   |   +---hooks
-    |   |   |       useClients.ts
-    |   |   |       
-    |   |   +---pages
-    |   |   |       ClientRegistrationPage.tsx
-    |   |   |       ClientsPage.tsx
-    |   |   |       
-    |   |   \---services
-    |   |           clientPortalService.ts
+    |   |   \---pages
+    |   |           ClientDetailPage.tsx
+    |   |           ClientEditPage.tsx
+    |   |           ClientProfilePage.tsx
+    |   |           ClientsPage.tsx
+    |   |           NewClientPage.tsx
     |   |           
     |   +---courier
     |   |   |   index.ts
@@ -170,6 +168,7 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |   |   |       DocumentsModule.tsx
     |   |   |       RatesModule.tsx
     |   |   |       ShippingModule.tsx
+    |   |   |       WarehouseModule - copia.tsx
     |   |   |       WarehouseModule.tsx
     |   |   |       
     |   |   \---pages
@@ -183,40 +182,25 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |   |   |   index.ts
     |   |   |   
     |   |   \---pages
+    |   |           CourierDetailPage.tsx
+    |   |           CourierProfilePage.tsx
     |   |           CouriersPage.tsx
+    |   |           NewCourierPage.tsx
     |   |           
     |   +---dashboard
-    |   |   |   index.ts
-    |   |   |   
-    |   |   +---components
-    |   |   |       MetricCard.tsx
-    |   |   |       Nuevo Documento de texto.txt
-    |   |   |       PackageStatusChart.tsx
-    |   |   |       QuickActions.tsx
-    |   |   |       RecentActivity.tsx
-    |   |   |       RevenueChart.tsx
-    |   |   |       SystemAlerts.tsx
-    |   |   |       
-    |   |   +---hooks
-    |   |   |       useDashboardData.ts
-    |   |   |       
-    |   |   +---pages
-    |   |   |       DashboardPage.tsx
-    |   |   |       
-    |   |   \---services
-    |   |           dashboardService.ts
+    |   |   \---pages
+    |   |           DashboardPage.tsx
+    |   |           
+    |   +---notifications
+    |   |   \---pages
+    |   |           NotificationsPage.tsx
     |   |           
     |   +---packages
-    |   |   |   index.ts
-    |   |   |   
-    |   |   +---components
-    |   |   |       PackageDetails.tsx
-    |   |   |       PackageFilters.tsx
-    |   |   |       PackageForm.tsx
-    |   |   |       PackageTable.tsx
-    |   |   |       
     |   |   \---pages
+    |   |           NewPackagePage.tsx
+    |   |           PackageDetailPage.tsx
     |   |           PackagesPage.tsx
+    |   |           PackageTrackingPage.tsx
     |   |           
     |   +---reports
     |   |   |   index.ts
@@ -230,30 +214,20 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |   |   \---pages
     |   |           SettingsPage.tsx
     |   |           
-    |   \---tracking
-    |       |   index.ts
-    |       |   
+    |   +---tracking
+    |   |   \---pages
+    |   |           TrackingPage.tsx
+    |   |           
+    |   \---warehouse
     |       +---components
-    |       |       PackageManager.jsx
-    |       |       PublicTracking.jsx
-    |       |       TrackingMap.tsx
-    |       |       TrackingSearch.tsx
-    |       |       TrackingTimeline.tsx
-    |       |       
-    |       +---hooks
-    |       |       useTracking.ts
-    |       |       
-    |       +---pages
-    |       |       TrackingPage.tsx
-    |       |       
-    |       \---services
-    |               trackingService.ts
+    |       \---pages
+    |               WarehousePage.tsx
     |               
     +---pages
     +---services
-    |   |   apiClient.ts
-    |   |   apiService.ts
+    |   |   emailServices.ts
     |   |   index.ts
+    |   |   warehouseService.ts
     |   |   
     |   +---api
     |   |       apiClient.ts
@@ -261,7 +235,6 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |   |       packageService.ts
     |   |       
     |   \---utils
-    |           storageService.ts
     |           validationService.ts
     |           
     +---sistema
@@ -273,13 +246,12 @@ C:\ITOBOX Courier\itobox-improved\itobox-frontend
     |       api.ts
     |       courier.ts
     |       index.ts
-    |       index.ts.bak
     |       
     +---utils
     |       cn.ts
     |       constants.jsx
-    |       fileService.ts
     |       
+    +---warehouse
     \---_tets_
         +---components
         +---hooks
