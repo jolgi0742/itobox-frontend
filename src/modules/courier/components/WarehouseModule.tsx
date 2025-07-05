@@ -1,1034 +1,847 @@
+// src/modules/courier/components/WarehouseModule.tsx
+// ITOBOX Courier - WAREHOUSE-USA Edition - Production Ready
+
 import React, { useState, useEffect } from 'react';
-import {
-  Package,
-  Search,
-  Filter,
-  Plus,
-  Edit3,
-  Trash2,
-  Eye,
-  Download,
-  Upload,
-  QrCode,
-  Scale,
-  Ruler,
-  DollarSign,
-  MapPin,
-  Calendar,
-  User,
-  Building,
-  X,
-  Save,
-  FileText,
-  Hash
-} from 'lucide-react';
+import { Package, Search, Plus, Mail, Plane, Ship, Trash2, AlertCircle, CheckCircle, Clock, Scale, DollarSign } from 'lucide-react';
+import { 
+  warehouseService, 
+  WHRPackage, 
+  WHRCreateData, 
+  WHRStats
+} from '../../../services/warehouseService';
 
-interface Product {
-  id: string;
-  partNumber: string;
-  name: string;
-  description: string;
-  category: string;
-  unitPrice: number;
-  quantity: number;
-  totalValue: number;
-  weight: number;
-  dimensions: {
-    length: number;
-    width: number;
-    height: number;
-  };
-  location: string;
-  QrCode?: string;
-  supplier?: string;
-  notes?: string;
+interface WarehouseModuleProps {
+  className?: string;
 }
 
-interface WHRPackage {
-  id: string;
-  whrNumber: string;
-  clientName: string;
-  clientCompany?: string;
-  consigneeName: string;
-  consigneeAddress: string;
-  status: 'pending' | 'classified' | 'email_sent' | 'delivered';
-  transportType: 'air' | 'sea' | 'pending';
-  createdDate: string;
-  weight: number;
-  dimensions: {
-    length: number;
-    width: number;
-    height: number;
-  };
-  volume: number;
-  volumeWeight: number;
-  products: Product[];
-  totalValue: number;
-  notes?: string;
-  trackingNumber?: string;
-  estimatedDelivery?: string;
-}
-
-const WarehouseModule: React.FC = () => {
-  const [packages, setPackages] = useState<WHRPackage[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState<WHRPackage | null>(null);
+const WarehouseModule: React.FC<WarehouseModuleProps> = ({ className = '' }) => {
+  // Estados principales
+  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'stats'>('list');
+  const [whrs, setWHRs] = useState<WHRPackage[]>([]);
+  const [stats, setStats] = useState<WHRStats | null>(null);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [newPackage, setNewPackage] = useState<Partial<WHRPackage>>({
-    clientName: '',
-    clientCompany: '',
-    consigneeName: '',
-    consigneeAddress: '',
+  const [isConnected, setIsConnected] = useState(false);
+
+  // Estados del formulario
+  const [formData, setFormData] = useState<WHRCreateData>({
+    invoiceNumber: '',
+    poNumber: '',
+    shipper: '',
+    consignee: '',
+    carrier: '',
+    partida: '',
+    description: '',
+    quantity: 1,
+    unitValue: 0,
     weight: 0,
-    dimensions: { length: 0, width: 0, height: 0 },
-    products: [],
-    notes: '',
-    trackingNumber: ''
+    length: 0,
+    width: 0,
+    height: 0,
+    estimatedArrivalCR: ''
   });
 
-  useEffect(() => {
-    // Simular carga de datos
-    const mockPackages: WHRPackage[] = [
-      {
-        id: '1',
-        whrNumber: 'WHR241216001',
-        clientName: 'Juan Pérez',
-        clientCompany: 'Empresa ABC',
-        consigneeName: 'María González',
-        consigneeAddress: 'San José, Costa Rica',
-        status: 'classified',
-        transportType: 'air',
-        createdDate: '2024-06-16T10:30:00Z',
-        weight: 15.5,
-        dimensions: { length: 50, width: 30, height: 20 },
-        volume: 0.03,
-        volumeWeight: 32.4,
-        products: [
-          {
-            id: '1',
-            partNumber: 'PN-001-2024',
-            name: 'Laptop Dell Inspiron',
-            description: 'Laptop para oficina, 8GB RAM, 256GB SSD',
-            category: 'Electrónicos',
-            unitPrice: 850.00,
-            quantity: 2,
-            totalValue: 1700.00,
-            weight: 4.5,
-            dimensions: { length: 35, width: 25, height: 2 },
-            location: 'A1-B2-C3',
-            QrCode: '1234567890123',
-            supplier: 'Dell Costa Rica',
-            notes: 'Embalaje especial requerido'
-          },
-          {
-            id: '2',
-            partNumber: 'PN-002-2024',
-            name: 'Monitor Samsung 24"',
-            description: 'Monitor LED Full HD 1920x1080',
-            category: 'Electrónicos',
-            unitPrice: 250.00,
-            quantity: 1,
-            totalValue: 250.00,
-            weight: 3.2,
-            dimensions: { length: 60, width: 40, height: 8 },
-            location: 'A1-B2-C4',
-            QrCode: '2345678901234',
-            supplier: 'Samsung CR'
-          }
-        ],
-        totalValue: 1950.00,
-        notes: 'Productos frágiles - Manejar con cuidado',
-        trackingNumber: 'TRK001234567',
-        estimatedDelivery: '2024-06-20T15:00:00Z'
-      }
-    ];
+  // Función para cargar datos
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const response = await warehouseService.getWHRs();
+      setWHRs(response.data || []);
+      setStats(response.stats || null);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setPackages(mockPackages);
+  // Test de conexión inicial
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        const response = await warehouseService.healthCheck();
+        setIsConnected(response.success);
+        
+        if (response.success) {
+          loadData();
+        }
+      } catch (error) {
+        console.error('Connection test failed:', error);
+        setIsConnected(false);
+      }
+    };
+
+    testConnection();
   }, []);
 
-  const calculateVolume = (length: number, width: number, height: number) => {
-    return (length * width * height) * 0.000001; // Convert to cubic meters
-  };
+  // Recargar cuando cambie el término de búsqueda
+  useEffect(() => {
+    if (isConnected && searchTerm.length === 0) {
+      loadData();
+    }
+  }, [searchTerm, isConnected]);
 
-  const calculateVolumeWeight = (volume: number) => {
-    return volume * 167; // Aviation standard
-  };
-
-  const addProduct = () => {
-    const newProduct: Product = {
-      id: Date.now().toString(),
-      partNumber: '',
-      name: '',
-      description: '',
-      category: '',
-      unitPrice: 0,
-      quantity: 1,
-      totalValue: 0,
-      weight: 0,
-      dimensions: { length: 0, width: 0, height: 0 },
-      location: '',
-      QrCode: '',
-      supplier: '',
-      notes: ''
-    };
-
-    setNewPackage({
-      ...newPackage,
-      products: [...(newPackage.products || []), newProduct]
-    });
-  };
-
-  const updateProduct = (index: number, field: string, value: any) => {
-    const updatedProducts = [...(newPackage.products || [])];
-    updatedProducts[index] = {
-      ...updatedProducts[index],
-      [field]: value
-    };
-
-    // Recalcular total si es quantity o unitPrice
-    if (field === 'quantity' || field === 'unitPrice') {
-      updatedProducts[index].totalValue = updatedProducts[index].quantity * updatedProducts[index].unitPrice;
+  // Manejar envío del formulario
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!isConnected) {
+      alert('No hay conexión con el backend. Verificar configuración.');
+      return;
     }
 
-    setNewPackage({ ...newPackage, products: updatedProducts });
-  };
-
-  const removeProduct = (index: number) => {
-    const updatedProducts = newPackage.products?.filter((_, i) => i !== index) || [];
-    setNewPackage({ ...newPackage, products: updatedProducts });
-  };
-
-  const handleCreateWHR = () => {
-    const volume = calculateVolume(
-      newPackage.dimensions?.length || 0,
-      newPackage.dimensions?.width || 0,
-      newPackage.dimensions?.height || 0
-    );
-    const volumeWeight = calculateVolumeWeight(volume);
-    const totalValue = newPackage.products?.reduce((sum, product) => sum + product.totalValue, 0) || 0;
-
-    const whrData: WHRPackage = {
-      id: Date.now().toString(),
-      whrNumber: `WHR${new Date().toISOString().slice(2, 10).replace(/-/g, '')}${String(packages.length + 1).padStart(3, '0')}`,
-      clientName: newPackage.clientName!,
-      clientCompany: newPackage.clientCompany,
-      consigneeName: newPackage.consigneeName!,
-      consigneeAddress: newPackage.consigneeAddress!,
-      status: 'pending',
-      transportType: 'pending',
-      createdDate: new Date().toISOString(),
-      weight: newPackage.weight!,
-      dimensions: newPackage.dimensions!,
-      volume,
-      volumeWeight,
-      products: newPackage.products!,
-      totalValue,
-      notes: newPackage.notes,
-      trackingNumber: newPackage.trackingNumber
-    };
-
-    setPackages([whrData, ...packages]);
-    setShowCreateModal(false);
-    setNewPackage({
-      clientName: '',
-      clientCompany: '',
-      consigneeName: '',
-      consigneeAddress: '',
-      weight: 0,
-      dimensions: { length: 0, width: 0, height: 0 },
-      products: [],
-      notes: '',
-      trackingNumber: ''
-    });
-
-    alert(`✅ WHR ${whrData.whrNumber} creado exitosamente!`);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'classified': return 'bg-blue-100 text-blue-800';
-      case 'email_sent': return 'bg-green-100 text-green-800';
-      case 'delivered': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+    setLoading(true);
+    try {
+      const response = await warehouseService.createWHR(formData);
+      
+      if (response.success) {
+        // Resetear formulario
+        setFormData({
+          invoiceNumber: '',
+          poNumber: '',
+          shipper: '',
+          consignee: '',
+          carrier: '',
+          partida: '',
+          description: '',
+          quantity: 1,
+          unitValue: 0,
+          weight: 0,
+          length: 0,
+          width: 0,
+          height: 0,
+          estimatedArrivalCR: ''
+        });
+        
+        // Volver a la lista y recargar datos
+        setActiveTab('list');
+        await loadData();
+        
+        alert(`WHR ${response.data?.whrNumber || 'nuevo'} creado exitosamente`);
+      }
+    } catch (error) {
+      console.error('Error creating WHR:', error);
+      alert('Error al crear WHR: ' + (error as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filteredPackages = packages.filter(pkg => {
-    const matchesSearch = pkg.whrNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pkg.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pkg.consigneeName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || pkg.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  // Clasificar WHR como Aéreo
+  const handleClassifyAWB = async (id: string) => {
+    if (!isConnected) return;
+
+    try {
+      const response = await warehouseService.classifyAsAWB(id);
+      if (response.success) {
+        await loadData();
+        alert('WHR clasificado como Aéreo (AWB)');
+      }
+    } catch (error) {
+      console.error('Error classifying WHR as AWB:', error);
+      alert('Error al clasificar WHR como Aéreo');
+    }
+  };
+
+  // Clasificar WHR como Marítimo
+  const handleClassifyBL = async (id: string) => {
+    if (!isConnected) return;
+
+    try {
+      const response = await warehouseService.classifyAsBL(id);
+      if (response.success) {
+        await loadData();
+        alert('WHR clasificado como Marítimo (BL)');
+      }
+    } catch (error) {
+      console.error('Error classifying WHR as BL:', error);
+      alert('Error al clasificar WHR como Marítimo');
+    }
+  };
+
+  // Enviar email
+  const handleSendEmail = async (id: string) => {
+    if (!isConnected) return;
+
+    try {
+      const response = await warehouseService.sendEmail(id);
+      if (response.success) {
+        await loadData();
+        alert('Notificación enviada exitosamente');
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Error al enviar notificación');
+    }
+  };
+
+  // Eliminar WHR
+  const handleDelete = async (id: string, whrNumber?: string) => {
+    if (!isConnected) return;
+
+    if (window.confirm(`¿Está seguro de eliminar el WHR ${whrNumber || id}?`)) {
+      try {
+        const response = await warehouseService.deleteWHR(id);
+        if (response.success) {
+          await loadData();
+          alert('WHR eliminado exitosamente');
+        }
+      } catch (error) {
+        console.error('Error deleting WHR:', error);
+        alert('Error al eliminar WHR');
+      }
+    }
+  };
+
+  // Cálculos automáticos
+  const volume = warehouseService.calculateVolume(formData.length, formData.width, formData.height);
+  const volumeWeight = warehouseService.calculateVolumeWeight(volume);
+  const totalValue = formData.quantity * formData.unitValue;
+
+  // Filtrar WHRs
+  const filteredWHRs = whrs.filter(whr =>
+    (whr.whrNumber?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+    (whr.consignee?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+    (whr.carrier?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
+  );
+
+  // Formatear moneda
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  // Formatear peso
+  const formatWeight = (weight: number): string => {
+    return `${weight.toFixed(2)} kg`;
+  };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className={`bg-white rounded-xl shadow-lg ${className}`}>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Warehouse Receipt (WHR)</h1>
-          <p className="text-gray-600 mt-2">Gestión de recibos de almacén y productos</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
-        >
-          <Plus className="w-5 h-5" />
-          Crear WHR
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total WHRs</p>
-              <p className="text-2xl font-bold text-gray-900">{packages.length}</p>
-            </div>
-            <div className="bg-blue-100 p-3 rounded-lg">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
               <Package className="w-6 h-6 text-blue-600" />
             </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Valor Total</p>
-              <p className="text-2xl font-bold text-green-600">
-                ${packages.reduce((sum, pkg) => sum + pkg.totalValue, 0).toLocaleString()}
-              </p>
-            </div>
-            <div className="bg-green-100 p-3 rounded-lg">
-              <DollarSign className="w-6 h-6 text-green-600" />
+              <h2 className="text-xl font-bold text-gray-900">Módulo Operativo</h2>
+              <p className="text-sm text-gray-600">Gestión de WHR - Warehouse Receipts</p>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Peso Total</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {packages.reduce((sum, pkg) => sum + pkg.weight, 0).toFixed(1)} kg
-              </p>
-            </div>
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <Scale className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Productos</p>
-              <p className="text-2xl font-bold text-orange-600">
-                {packages.reduce((sum, pkg) => sum + pkg.products.length, 0)}
-              </p>
-            </div>
-            <div className="bg-orange-100 p-3 rounded-lg">
-              <FileText className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Buscar por WHR, cliente o consignatario..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <select
-              className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">Todos los estados</option>
-              <option value="pending">Pendiente</option>
-              <option value="classified">Clasificado</option>
-              <option value="email_sent">Email Enviado</option>
-              <option value="delivered">Entregado</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* WHR List */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">WHR</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Productos</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Peso/Valor</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPackages.map((pkg) => (
-                <tr key={pkg.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{pkg.whrNumber}</div>
-                    <div className="text-sm text-gray-500">{new Date(pkg.createdDate).toLocaleDateString()}</div>
-                    {pkg.trackingNumber && (
-                      <div className="text-xs text-blue-600">TRK: {pkg.trackingNumber}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{pkg.clientName}</div>
-                    {pkg.clientCompany && (
-                      <div className="text-sm text-gray-500">{pkg.clientCompany}</div>
-                    )}
-                    <div className="text-sm text-gray-500">→ {pkg.consigneeName}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">{pkg.products.length} productos</div>
-                    <div className="text-xs text-gray-500">
-                      {pkg.products.slice(0, 2).map(p => p.name).join(', ')}
-                      {pkg.products.length > 2 && ` +${pkg.products.length - 2} más`}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">{pkg.weight} kg</div>
-                    <div className="text-sm text-green-600">${pkg.totalValue.toLocaleString()}</div>
-                    <div className="text-xs text-gray-500">Vol: {pkg.volume.toFixed(3)} m³</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pkg.status)}`}>
-                      {pkg.status === 'pending' ? 'Pendiente' :
-                       pkg.status === 'classified' ? 'Clasificado' :
-                       pkg.status === 'email_sent' ? 'Email Enviado' : 'Entregado'}
-                    </span>
-                    {pkg.transportType !== 'pending' && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {pkg.transportType === 'air' ? '✈️ Aéreo' : '🚢 Marítimo'}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedPackage(pkg);
-                          setShowViewModal(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 p-1"
-                        title="Ver detalles"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedPackage(pkg);
-                          setShowEditModal(true);
-                        }}
-                        className="text-green-600 hover:text-green-800 p-1"
-                        title="Editar"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => alert(`Eliminando WHR ${pkg.whrNumber}`)}
-                        className="text-red-600 hover:text-red-800 p-1"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Create WHR Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-6xl w-full max-h-[95vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-900">Crear Nuevo WHR</h2>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-6 h-6" />
-              </button>
+          
+          <div className="flex items-center space-x-3">
+            {/* Status de conexión */}
+            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
+              isConnected 
+                ? 'bg-green-100 text-green-700' 
+                : 'bg-red-100 text-red-700'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                isConnected ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span>{isConnected ? 'Conectado' : 'Desconectado'}</span>
             </div>
             
-            <div className="p-6 space-y-6">
-              {/* Client Information */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Información del Cliente
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Cliente *</label>
-                    <input
-                      type="text"
-                      required
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      value={newPackage.clientName || ''}
-                      onChange={(e) => setNewPackage({
-                        ...newPackage,
-                        clientName: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Empresa (Opcional)</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      value={newPackage.clientCompany || ''}
-                      onChange={(e) => setNewPackage({
-                        ...newPackage,
-                        clientCompany: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Consignatario *</label>
-                    <input
-                      type="text"
-                      required
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      value={newPackage.consigneeName || ''}
-                      onChange={(e) => setNewPackage({
-                        ...newPackage,
-                        consigneeName: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Dirección del Consignatario *</label>
-                    <input
-                      type="text"
-                      required
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      value={newPackage.consigneeAddress || ''}
-                      onChange={(e) => setNewPackage({
-                        ...newPackage,
-                        consigneeAddress: e.target.value
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
+            {isConnected && (
+              <button
+                onClick={() => setActiveTab('create')}
+                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crear WHR</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
-              {/* Package Information */}
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  Información del Paquete
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Peso Total (kg) *</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      required
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                      value={newPackage.weight || ''}
-                      onChange={(e) => setNewPackage({
-                        ...newPackage,
-                        weight: parseFloat(e.target.value) || 0
-                      })}
-                    />
+      {/* Navigation Tabs */}
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex space-x-6">
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'list'
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Lista de WHRs
+          </button>
+          <button
+            onClick={() => setActiveTab('create')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'create'
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Crear WHR
+          </button>
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'stats'
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Estadísticas
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        {!isConnected && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              <span className="text-red-700 font-medium">Sin conexión al backend</span>
+            </div>
+            <p className="text-red-600 text-sm mt-1">
+              Verificar que el backend esté funcionando en el servidor de producción.
+            </p>
+          </div>
+        )}
+
+        {/* Lista de WHRs */}
+        {activeTab === 'list' && (
+          <div className="space-y-6">
+            {/* Barra de búsqueda */}
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por WHR, consignee, carrier..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Loading */}
+            {loading && (
+              <div className="text-center py-8">
+                <Clock className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
+                <p className="text-gray-600">Cargando WHRs...</p>
+              </div>
+            )}
+
+            {/* Lista de WHRs */}
+            {!loading && (
+              <div className="space-y-4">
+                {filteredWHRs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No hay WHRs</h3>
+                    <p className="text-gray-600">
+                      {searchTerm ? 'No se encontraron resultados para la búsqueda.' : 'Comienza creando tu primer WHR.'}
+                    </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Largo (cm)</label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                      value={newPackage.dimensions?.length || ''}
-                      onChange={(e) => setNewPackage({
-                        ...newPackage,
-                        dimensions: {
-                          ...newPackage.dimensions!,
-                          length: parseInt(e.target.value) || 0
-                        }
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ancho (cm)</label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                      value={newPackage.dimensions?.width || ''}
-                      onChange={(e) => setNewPackage({
-                        ...newPackage,
-                        dimensions: {
-                          ...newPackage.dimensions!,
-                          width: parseInt(e.target.value) || 0
-                        }
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Alto (cm)</label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                      value={newPackage.dimensions?.height || ''}
-                      onChange={(e) => setNewPackage({
-                        ...newPackage,
-                        dimensions: {
-                          ...newPackage.dimensions!,
-                          height: parseInt(e.target.value) || 0
-                        }
-                      })}
-                    />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Número de Tracking (Opcional)</label>
+                ) : (
+                  filteredWHRs.map((whr) => (
+                    <div key={whr.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{whr.whrNumber || whr.id}</h3>
+                          <p className="text-sm text-gray-600">Invoice: {whr.invoiceNumber}</p>
+                          {whr.poNumber && (
+                            <p className="text-sm text-gray-600">PO: {whr.poNumber}</p>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          {(!whr.transportType || whr.transportType === 'pending') && (
+                            <>
+                              <button
+                                onClick={() => handleClassifyAWB(whr.id!)}
+                                className="flex items-center space-x-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition-colors"
+                              >
+                                <Plane className="w-3 h-3" />
+                                <span>AWB</span>
+                              </button>
+                              <button
+                                onClick={() => handleClassifyBL(whr.id!)}
+                                className="flex items-center space-x-1 bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-sm hover:bg-cyan-200 transition-colors"
+                              >
+                                <Ship className="w-3 h-3" />
+                                <span>BL</span>
+                              </button>
+                            </>
+                          )}
+                          {whr.transportType && whr.transportType !== 'pending' && (
+                            <span className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm ${
+                              whr.transportType === 'air' 
+                                ? 'bg-blue-100 text-blue-700' 
+                                : 'bg-cyan-100 text-cyan-700'
+                            }`}>
+                              {whr.transportType === 'air' ? <Plane className="w-3 h-3" /> : <Ship className="w-3 h-3" />}
+                              <span>{whr.transportType === 'air' ? 'AWB' : 'BL'}</span>
+                            </span>
+                          )}
+                          {!whr.emailSent && whr.transportType && whr.transportType !== 'pending' && (
+                            <button
+                              onClick={() => handleSendEmail(whr.id!)}
+                              className="flex items-center space-x-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm hover:bg-green-200 transition-colors"
+                            >
+                              <Mail className="w-3 h-3" />
+                              <span>Email</span>
+                            </button>
+                          )}
+                          {whr.emailSent && (
+                            <span className="flex items-center space-x-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">
+                              <CheckCircle className="w-3 h-3" />
+                              <span>Enviado</span>
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleDelete(whr.id!, whr.whrNumber)}
+                            className="flex items-center space-x-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm hover:bg-red-200 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">Consignee:</span>
+                          <p className="font-medium">{whr.consignee}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Carrier:</span>
+                          <p className="font-medium">{whr.carrier}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Peso:</span>
+                          <p className="font-medium">{formatWeight(whr.weight)}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Valor:</span>
+                          <p className="font-medium">{formatCurrency(whr.totalValue || 0)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Crear WHR */}
+        {activeTab === 'create' && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Información del documento */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Información del Documento</h3>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Número de Factura *
+                  </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                    placeholder="Ej: TRK001234567"
-                    value={newPackage.trackingNumber || ''}
-                    onChange={(e) => setNewPackage({
-                      ...newPackage,
-                      trackingNumber: e.target.value
-                    })}
+                    required
+                    value={formData.invoiceNumber}
+                    onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="INV-2024-001"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Número PO
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.poNumber}
+                    onChange={(e) => setFormData({ ...formData, poNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="PO-2024-001"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Carrier *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.carrier}
+                    onChange={(e) => setFormData({ ...formData, carrier: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="DHL, FedEx, UPS, etc."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Partida Arancelaria
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.partida}
+                    onChange={(e) => setFormData({ ...formData, partida: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="8517.12.00"
                   />
                 </div>
               </div>
 
-              {/* Products List */}
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Lista de Productos
-                  </h3>
-                  <button
-                    onClick={addProduct}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Agregar Producto
-                  </button>
+              {/* Información del remitente y destinatario */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Remitente y Destinatario</h3>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Remitente (Shipper) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.shipper}
+                    onChange={(e) => setFormData({ ...formData, shipper: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="PREMIER GLOBAL USA CORP"
+                  />
                 </div>
 
-                <div className="space-y-4">
-                  {newPackage.products?.map((product, index) => (
-                    <div key={product.id} className="bg-white p-4 rounded-lg border border-purple-200">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium text-gray-900">Producto #{index + 1}</h4>
-                        <button
-                          onClick={() => removeProduct(index)}
-                          className="text-red-600 hover:text-red-800 p-1"
-                          title="Eliminar producto"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Row 1: Basic Info */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <Hash className="w-4 h-4 inline mr-1" />
-                            Número de Partida *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="PN-001-2024"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.partNumber}
-                            onChange={(e) => updateProduct(index, 'partNumber', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Producto *</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="Ej: Laptop Dell Inspiron"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.name}
-                            onChange={(e) => updateProduct(index, 'name', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                          <select
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.category}
-                            onChange={(e) => updateProduct(index, 'category', e.target.value)}
-                          >
-                            <option value="">Seleccionar categoría</option>
-                            <option value="Electrónicos">Electrónicos</option>
-                            <option value="Ropa">Ropa</option>
-                            <option value="Hogar">Hogar</option>
-                            <option value="Libros">Libros</option>
-                            <option value="Juguetes">Juguetes</option>
-                            <option value="Otros">Otros</option>
-                          </select>
-                        </div>
-
-                        {/* Row 2: Description */}
-                        <div className="md:col-span-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <FileText className="w-4 h-4 inline mr-1" />
-                            Descripción Detallada *
-                          </label>
-                          <textarea
-                            rows={2}
-                            required
-                            placeholder="Descripción completa del producto, características, modelo, etc."
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.description}
-                            onChange={(e) => updateProduct(index, 'description', e.target.value)}
-                          />
-                        </div>
-
-                        {/* Row 3: Quantities and Pricing */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad *</label>
-                          <input
-                            type="number"
-                            min="1"
-                            required
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.quantity}
-                            onChange={(e) => updateProduct(index, 'quantity', parseInt(e.target.value) || 1)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <DollarSign className="w-4 h-4 inline mr-1" />
-                            Valor Unitario * (USD)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            required
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.unitPrice}
-                            onChange={(e) => updateProduct(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Valor Total (USD)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50"
-                            value={product.totalValue.toFixed(2)}
-                            readOnly
-                          />
-                        </div>
-
-                        {/* Row 4: Physical Properties */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <Scale className="w-4 h-4 inline mr-1" />
-                            Peso (kg)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.weight}
-                            onChange={(e) => updateProduct(index, 'weight', parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <MapPin className="w-4 h-4 inline mr-1" />
-                            Ubicación en Almacén
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Ej: A1-B2-C3"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.location}
-                            onChange={(e) => updateProduct(index, 'location', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <QrCode className="w-4 h-4 inline mr-1" />
-                            Código de Barras
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="1234567890123"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.QrCode}
-                            onChange={(e) => updateProduct(index, 'QrCode', e.target.value)}
-                          />
-                        </div>
-
-                        {/* Row 5: Dimensions */}
-                        <div className="md:col-span-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <Ruler className="w-4 h-4 inline mr-1" />
-                            Dimensiones del Producto (cm)
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            <input
-                              type="number"
-                              placeholder="Largo"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                              value={product.dimensions.length}
-                              onChange={(e) => updateProduct(index, 'dimensions', {
-                                ...product.dimensions,
-                                length: parseInt(e.target.value) || 0
-                              })}
-                            />
-                            <input
-                              type="number"
-                              placeholder="Ancho"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                              value={product.dimensions.width}
-                              onChange={(e) => updateProduct(index, 'dimensions', {
-                                ...product.dimensions,
-                                width: parseInt(e.target.value) || 0
-                              })}
-                            />
-                            <input
-                              type="number"
-                              placeholder="Alto"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                              value={product.dimensions.height}
-                              onChange={(e) => updateProduct(index, 'dimensions', {
-                                ...product.dimensions,
-                                height: parseInt(e.target.value) || 0
-                              })}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Row 6: Additional Info */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <Building className="w-4 h-4 inline mr-1" />
-                            Proveedor/Fabricante
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Ej: Dell Costa Rica"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.supplier}
-                            onChange={(e) => updateProduct(index, 'supplier', e.target.value)}
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Notas Especiales</label>
-                          <input
-                            type="text"
-                            placeholder="Ej: Frágil, Requiere refrigeración, etc."
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            value={product.notes}
-                            onChange={(e) => updateProduct(index, 'notes', e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {(!newPackage.products || newPackage.products.length === 0) && (
-                    <div className="text-center py-8 border-2 border-dashed border-purple-300 rounded-lg">
-                      <FileText className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No hay productos agregados</p>
-                      <p className="text-sm text-gray-500">Haz clic en "Agregar Producto" para comenzar</p>
-                    </div>
-                  )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Destinatario (Consignee) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.consignee}
+                    onChange={(e) => setFormData({ ...formData, consignee: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nombre del cliente en Costa Rica"
+                  />
                 </div>
 
-                {/* Products Summary */}
-                {newPackage.products && newPackage.products.length > 0 && (
-                  <div className="mt-6 pt-4 border-t border-purple-200">
-                    <div className="flex justify-end">
-                      <div className="w-80 space-y-2 bg-white p-4 rounded-lg">
-                        <h4 className="font-semibold text-gray-900 mb-3">Resumen de Productos</h4>
-                        <div className="flex justify-between">
-                          <span>Total productos:</span>
-                          <span>{newPackage.products.length}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Cantidad total:</span>
-                          <span>{newPackage.products.reduce((sum, p) => sum + p.quantity, 0)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Peso total productos:</span>
-                          <span>{newPackage.products.reduce((sum, p) => sum + (p.weight * p.quantity), 0).toFixed(1)} kg</span>
-                        </div>
-                        <div className="flex justify-between font-bold text-lg border-t pt-2">
-                          <span>Valor total:</span>
-                          <span>${newPackage.products.reduce((sum, p) => sum + p.totalValue, 0).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha Estimada de Llegada CR
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.estimatedArrivalCR}
+                    onChange={(e) => setFormData({ ...formData, estimatedArrivalCR: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción *
+                  </label>
+                  <textarea
+                    required
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Descripción detallada del contenido"
+                  />
+                </div>
               </div>
 
-              {/* Notes */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Notas Adicionales</h3>
-                <textarea
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-500"
-                  placeholder="Instrucciones especiales, notas sobre el manejo, etc..."
-                  value={newPackage.notes || ''}
-                  onChange={(e) => setNewPackage({
-                    ...newPackage,
-                    notes: e.target.value
-                  })}
-                />
+              {/* Información del paquete */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Información del Paquete</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Cantidad *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Peso (kg) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={formData.weight}
+                      onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Largo (cm)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={formData.length}
+                      onChange={(e) => setFormData({ ...formData, length: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ancho (cm)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={formData.width}
+                      onChange={(e) => setFormData({ ...formData, width: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Alto (cm)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={formData.height}
+                      onChange={(e) => setFormData({ ...formData, height: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Valor Unitario (USD) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={formData.unitValue}
+                    onChange={(e) => setFormData({ ...formData, unitValue: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-4 p-6 border-t">
+            {/* Cálculos automáticos */}
+            {(formData.length > 0 && formData.width > 0 && formData.height > 0) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+                  <Scale className="w-4 h-4 mr-2" />
+                  Cálculos Automáticos
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-blue-700">Volumen:</span>
+                    <p className="font-medium text-blue-900">{volume.toFixed(4)} ft³</p>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Peso Volumétrico:</span>
+                    <p className="font-medium text-blue-900">{formatWeight(volumeWeight)}</p>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Valor Total:</span>
+                    <p className="font-medium text-blue-900">{formatCurrency(totalValue)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Botones */}
+            <div className="flex justify-end space-x-4">
               <button
-                onClick={() => setShowCreateModal(false)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                type="button"
+                onClick={() => setActiveTab('list')}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
               <button
-                onClick={handleCreateWHR}
-                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2"
+                type="submit"
+                disabled={loading || !isConnected}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <Save className="w-4 h-4" />
-                Crear WHR
+                {loading ? 'Creando...' : 'Crear WHR'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </form>
+        )}
 
-      {/* View Modal */}
-      {showViewModal && selectedPackage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-6xl w-full max-h-[95vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-900">WHR {selectedPackage.whrNumber}</h2>
-              <button onClick={() => setShowViewModal(false)} className="text-gray-500 hover:text-gray-700">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+        {/* Estadísticas */}
+        {activeTab === 'stats' && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-gray-900">Estadísticas del Sistema</h3>
             
-            <div className="p-6 space-y-6">
-              {/* Header Info */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Información General</h3>
-                    <p><span className="font-medium">WHR:</span> {selectedPackage.whrNumber}</p>
-                    <p><span className="font-medium">Fecha:</span> {new Date(selectedPackage.createdDate).toLocaleDateString()}</p>
-                    <p><span className="font-medium">Estado:</span> 
-                      <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getStatusColor(selectedPackage.status)}`}>
-                        {selectedPackage.status}
-                      </span>
-                    </p>
+            {stats ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-blue-600 text-sm font-medium">Total WHRs</p>
+                        <p className="text-2xl font-bold text-blue-900">{stats.totalWHRs || stats.total || 0}</p>
+                      </div>
+                      <Package className="w-8 h-8 text-blue-500" />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Cliente</h3>
-                    <p><span className="font-medium">Nombre:</span> {selectedPackage.clientName}</p>
-                    {selectedPackage.clientCompany && (
-                      <p><span className="font-medium">Empresa:</span> {selectedPackage.clientCompany}</p>
-                    )}
-                    <p><span className="font-medium">Consignatario:</span> {selectedPackage.consigneeName}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Métricas</h3>
-                    <p><span className="font-medium">Peso:</span> {selectedPackage.weight} kg</p>
-                    <p><span className="font-medium">Volumen:</span> {selectedPackage.volume.toFixed(3)} m³</p>
-                    <p><span className="font-medium">Valor total:</span> ${selectedPackage.totalValue.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Products */}
-              <div className="bg-white border border-gray-200 rounded-lg">
-                <div className="p-4 border-b bg-gray-50">
-                  <h3 className="text-lg font-semibold text-gray-900">Productos ({selectedPackage.products.length})</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partida</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cant.</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor Unit.</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ubicación</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {selectedPackage.products.map((product) => (
-                        <tr key={product.id}>
-                          <td className="px-4 py-3 text-sm font-mono text-blue-600">{product.partNumber}</td>
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                            <div className="text-xs text-gray-500">{product.category}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate" title={product.description}>
-                            {product.description}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 text-right">{product.quantity}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900 text-right">${product.unitPrice.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">${product.totalValue.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{product.location || 'N/A'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-green-600 text-sm font-medium">Valor Total</p>
+                        <p className="text-2xl font-bold text-green-900">{formatCurrency(stats.totalValue || 0)}</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-green-500" />
+                    </div>
+                  </div>
 
-            <div className="flex justify-end gap-4 p-6 border-t">
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Cerrar
-              </button>
-              <button
-                onClick={() => alert('Generando reporte PDF...')}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Descargar PDF
-              </button>
-            </div>
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-purple-600 text-sm font-medium">Valor Promedio</p>
+                        <p className="text-2xl font-bold text-purple-900">{formatCurrency(stats.averageUnitValue || 0)}</p>
+                      </div>
+                      <Scale className="w-8 h-8 text-purple-500" />
+                    </div>
+                  </div>
+
+                  <div className="bg-orange-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-600 text-sm font-medium">Pendientes</p>
+                        <p className="text-2xl font-bold text-orange-900">{stats.pending || 0}</p>
+                      </div>
+                      <Clock className="w-8 h-8 text-orange-500" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-4">Por Clasificación</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-2">
+                          <Plane className="w-4 h-4 text-blue-500" />
+                          <span className="text-gray-700">Aéreo (AWB)</span>
+                        </div>
+                        <span className="font-medium text-gray-900">{stats.classifiedAWB || stats.classified_awb || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-2">
+                          <Ship className="w-4 h-4 text-cyan-500" />
+                          <span className="text-gray-700">Marítimo (BL)</span>
+                        </div>
+                        <span className="font-medium text-gray-900">{stats.classifiedBL || stats.classified_bl || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-yellow-500" />
+                          <span className="text-gray-700">Pendiente</span>
+                        </div>
+                        <span className="font-medium text-gray-900">{stats.pending || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-4">WAREHOUSE-USA Metrics</h4>
+                    <div className="space-y-3">
+                      {stats.warehouseUSA ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-700">Tasa de Completitud</span>
+                            <span className="font-medium text-gray-900">{stats.warehouseUSA.completionRate}%</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-700">Con Invoice</span>
+                            <span className="font-medium text-gray-900">{stats.warehouseUSA.withInvoice}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-700">Con PO</span>
+                            <span className="font-medium text-gray-900">{stats.warehouseUSA.withPO}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-700">Con Carrier</span>
+                            <span className="font-medium text-gray-900">{stats.warehouseUSA.withCarrier}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-700">Con Partida</span>
+                            <span className="font-medium text-gray-900">{stats.warehouseUSA.withPartida}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No hay datos WAREHOUSE-USA disponibles</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* WHRs Recientes */}
+                {stats.recentWHRs && stats.recentWHRs.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-lg">
+                    <div className="p-4 border-b bg-gray-50">
+                      <h4 className="font-semibold text-gray-900">WHRs Recientes</h4>
+                    </div>
+                    <div className="p-4">
+                      <div className="space-y-3">
+                        {stats.recentWHRs.slice(0, 5).map((whr, index) => (
+                          <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                            <div>
+                              <p className="font-medium text-gray-900">{whr.whrNumber || `WHR-${index + 1}`}</p>
+                              <p className="text-sm text-gray-600">{whr.consignee}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium text-gray-900">{formatCurrency(whr.totalValue || 0)}</p>
+                              <p className="text-sm text-gray-600">{formatWeight(whr.weight)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Sin estadísticas</h3>
+                <p className="text-gray-600">
+                  {!isConnected ? 'Conecta con el backend para ver estadísticas.' : 'No hay datos suficientes para mostrar estadísticas.'}
+                </p>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
