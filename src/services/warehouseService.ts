@@ -1,6 +1,14 @@
-// src/services/warehouseService.ts - Compatible con métodos estáticos
+// src/services/warehouseService.ts - FIXED para Producción
 
-const API_BASE_URL = 'http://localhost:5000/api/warehouse';
+// 🔧 FIX: Usar variable de entorno o fallback a producción
+const API_BASE_URL = process.env.REACT_APP_API_URL 
+  ? `${process.env.REACT_APP_API_URL}/api/warehouse`
+  : 'https://itobox-backend.onrender.com/api/warehouse';
+
+// Log para debugging (solo en desarrollo)
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔧 Warehouse API URL:', API_BASE_URL);
+}
 
 // Interfaces compatibles con archivos existentes
 export interface WHRPackage {
@@ -140,7 +148,14 @@ export interface WHRListResponse {
 export class WarehouseService {
   private static async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const url = `${API_BASE_URL}${endpoint}`;
+      
+      // Log para debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🌐 API Call:', url);
+      }
+
+      const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
@@ -152,9 +167,16 @@ export class WarehouseService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Log para debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ API Response:', data);
+      }
+
+      return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('❌ API Error:', error);
       throw error;
     }
   }
