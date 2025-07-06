@@ -1,629 +1,874 @@
-// src/modules/clients/pages/ClientDetailPage.tsx
+// src/modules/clients/pages/ClientDetailPage.tsx - FIXED
 import React, { useState, useEffect } from 'react';
-import { useNavigation } from '../../../contexts/NavigationContext';
 import { 
-  ArrowLeft, 
-  Building, 
-  User, 
-  Mail, 
-  Phone, 
+  ArrowLeft,
+  Edit,
+  Trash2,
+  Phone,
+  Mail,
   MapPin,
+  Building,
+  User,
   Calendar,
   Package,
   DollarSign,
   TrendingUp,
+  Clock,
+  CheckCircle,
+  AlertCircle,
   Star,
-  Edit3,
-  Trash2,
-  Send,
   FileText,
-  Activity,
-  Award,
-  CreditCard
+  Send,
+  Plus,
+  Filter,
+  Search,
+  Download,
+  Eye
 } from 'lucide-react';
 
+// Interfaces
 interface ClientDetail {
   id: string;
   name: string;
-  company: string;
   email: string;
   phone: string;
   address: string;
-  city: string;
-  country: string;
-  taxId: string;
-  status: 'active' | 'inactive' | 'pending';
-  joinDate: string;
-  avatar?: string;
-  stats: {
-    totalPackages: number;
-    totalSpent: number;
-    avgOrderValue: number;
-    onTimeDeliveries: number;
-    rating: number;
-    lastOrder: string;
-  };
-  recentPackages: Array<{
-    id: string;
-    trackingNumber: string;
-    description: string;
-    status: string;
-    date: string;
-    value: number;
-  }>;
-  billingInfo: {
-    paymentMethod: string;
-    creditLimit: number;
-    currentBalance: number;
-    lastPayment: string;
-  };
+  company: string;
+  contactPerson: string;
+  registrationDate: string;
+  status: 'active' | 'inactive' | 'suspended';
+  creditLimit: number;
+  currentBalance: number;
+  totalOrders: number;
+  totalSpent: number;
+  averageOrderValue: number;
+  lastOrderDate: string;
+  preferredServices: string[];
+  notes: string;
+}
+
+interface ClientOrder {
+  id: string;
+  orderNumber: string;
+  date: string;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  amount: number;
+  services: string[];
+  trackingNumber?: string;
+}
+
+interface ClientInvoice {
+  id: string;
+  invoiceNumber: string;
+  date: string;
+  dueDate: string;
+  amount: number;
+  status: 'paid' | 'pending' | 'overdue';
+  description: string;
 }
 
 const ClientDetailPage: React.FC = () => {
-  const { navigate, getParam } = useNavigation();
-  const clientId = getParam('id');
+  // Navigation and URL params - FIXED
+  const navigate = (path: string) => {
+    window.location.hash = path;
+    window.location.reload();
+  };
+  
+  const getUrlParam = (param: string): string | null => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(param);
+  };
+  
+  const clientId = getUrlParam('id') || '1';
   
   const [clientData, setClientData] = useState<ClientDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'packages' | 'billing'>('overview');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // Mock data
+  const [orders] = useState<ClientOrder[]>([
+    {
+      id: '1',
+      orderNumber: 'ORD-2024-001',
+      date: '2024-07-15',
+      status: 'delivered',
+      amount: 850,
+      services: ['Express Shipping'],
+      trackingNumber: 'ITB2407150001'
+    },
+    {
+      id: '2',
+      orderNumber: 'ORD-2024-002',
+      date: '2024-07-10',
+      status: 'shipped',
+      amount: 1200,
+      services: ['Standard Shipping', 'Insurance'],
+      trackingNumber: 'ITB2407100002'
+    },
+    {
+      id: '3',
+      orderNumber: 'ORD-2024-003',
+      date: '2024-07-05',
+      status: 'processing',
+      amount: 650,
+      services: ['Economy Shipping']
+    }
+  ]);
+
+  const [invoices] = useState<ClientInvoice[]>([
+    {
+      id: '1',
+      invoiceNumber: 'INV-2024-001',
+      date: '2024-07-15',
+      dueDate: '2024-07-30',
+      amount: 850,
+      status: 'paid',
+      description: 'Servicios de courier julio'
+    },
+    {
+      id: '2',
+      invoiceNumber: 'INV-2024-002',
+      date: '2024-07-10',
+      dueDate: '2024-07-25',
+      amount: 1200,
+      status: 'pending',
+      description: 'Envíos múltiples'
+    }
+  ]);
+
+  // Simular carga de datos
   useEffect(() => {
-    const loadClientData = () => {
-      setLoading(true);
-      
-      setTimeout(() => {
-        const mockData: ClientDetail = {
-          id: clientId || 'CLI001',
-          name: 'María González',
-          company: 'Tech Solutions Corp',
-          email: 'maria.gonzalez@techsolutions.com',
-          phone: '+1 (305) 555-0123',
-          address: '123 Biscayne Blvd, Suite 500',
-          city: 'Miami',
-          country: 'Estados Unidos',
-          taxId: 'US-123456789',
-          status: 'active',
-          joinDate: '2024-01-15',
-          avatar: `https://ui-avatars.com/api/?name=Maria+Gonzalez&background=0ea5e9&color=fff`,
-          stats: {
-            totalPackages: 47,
-            totalSpent: 2580.50,
-            avgOrderValue: 54.90,
-            onTimeDeliveries: 45,
-            rating: 4.8,
-            lastOrder: '2025-06-15'
-          },
-          recentPackages: [
-            {
-              id: 'PKG001',
-              trackingNumber: 'ITB12345678',
-              description: 'Electronics - Laptop',
-              status: 'Delivered',
-              date: '2025-06-15',
-              value: 125.50
-            },
-            {
-              id: 'PKG002',
-              trackingNumber: 'ITB12345679',
-              description: 'Documents - Contracts',
-              status: 'In Transit',
-              date: '2025-06-14',
-              value: 35.00
-            },
-            {
-              id: 'PKG003',
-              trackingNumber: 'ITB12345680',
-              description: 'Fashion - Samples',
-              status: 'Pending',
-              date: '2025-06-13',
-              value: 89.75
-            }
-          ],
-          billingInfo: {
-            paymentMethod: 'Credit Card **** 1234',
-            creditLimit: 5000.00,
-            currentBalance: 0.00,
-            lastPayment: '2025-06-10'
-          }
-        };
-        
-        setClientData(mockData);
-        setLoading(false);
-      }, 1000);
-    };
+    const timer = setTimeout(() => {
+      setClientData({
+        id: clientId,
+        name: 'Empresa XYZ S.A.',
+        email: 'contacto@empresaxyz.com',
+        phone: '+506 2222-3333',
+        address: 'San José, Costa Rica, 200m norte del parque central',
+        company: 'Empresa XYZ S.A.',
+        contactPerson: 'Juan Pérez',
+        registrationDate: '2024-01-15',
+        status: 'active',
+        creditLimit: 5000,
+        currentBalance: 1200,
+        totalOrders: 45,
+        totalSpent: 15750,
+        averageOrderValue: 350,
+        lastOrderDate: '2024-07-15',
+        preferredServices: ['Express Shipping', 'Insurance'],
+        notes: 'Cliente preferencial con descuento del 10% en servicios express'
+      });
+      setLoading(false);
+    }, 1000);
 
-    loadClientData();
+    return () => clearTimeout(timer);
   }, [clientId]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-red-100 text-red-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  // Formatear moneda
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CR', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return 'Activo';
-      case 'inactive': return 'Inactivo';
-      case 'pending': return 'Pendiente';
-      default: return status;
-    }
+  // Formatear fecha
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-CR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
-  const getPackageStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'delivered': return 'bg-green-100 text-green-800';
-      case 'in transit': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  // Status badge component
+  const StatusBadge: React.FC<{ status: string; type?: 'client' | 'order' | 'invoice' }> = ({ status, type = 'client' }) => {
+    const getStatusConfig = (status: string, type: string) => {
+      if (type === 'client') {
+        switch (status) {
+          case 'active':
+            return { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Activo' };
+          case 'inactive':
+            return { color: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Inactivo' };
+          case 'suspended':
+            return { color: 'bg-red-100 text-red-800', icon: AlertCircle, label: 'Suspendido' };
+          default:
+            return { color: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Desconocido' };
+        }
+      } else if (type === 'order') {
+        switch (status) {
+          case 'delivered':
+            return { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Entregado' };
+          case 'shipped':
+            return { color: 'bg-blue-100 text-blue-800', icon: Package, label: 'Enviado' };
+          case 'processing':
+            return { color: 'bg-yellow-100 text-yellow-800', icon: Clock, label: 'Procesando' };
+          case 'pending':
+            return { color: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Pendiente' };
+          case 'cancelled':
+            return { color: 'bg-red-100 text-red-800', icon: AlertCircle, label: 'Cancelado' };
+          default:
+            return { color: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Desconocido' };
+        }
+      } else { // invoice
+        switch (status) {
+          case 'paid':
+            return { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Pagado' };
+          case 'pending':
+            return { color: 'bg-yellow-100 text-yellow-800', icon: Clock, label: 'Pendiente' };
+          case 'overdue':
+            return { color: 'bg-red-100 text-red-800', icon: AlertCircle, label: 'Vencido' };
+          default:
+            return { color: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Desconocido' };
+        }
+      }
+    };
+
+    const config = getStatusConfig(status, type);
+    const Icon = config.icon;
+
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+        <Icon className="w-3 h-3 mr-1" />
+        {config.label}
+      </span>
+    );
   };
 
+  // Actions
   const handleEdit = () => {
-    navigate('client-edit', { id: clientId! });
+    setShowEditModal(true);
   };
 
   const handleDelete = () => {
-    if (window.confirm(`¿Estás seguro de que deseas eliminar al cliente ${clientData?.name}?`)) {
-      console.log('Eliminando cliente:', clientId);
-      navigate('clients');
-    }
+    console.log('Deleting client:', clientData?.name);
+    setShowDeleteModal(false);
+    navigate('/clients');
   };
 
   const handleSendEmail = () => {
-    if (clientData) {
-      const subject = `Mensaje desde ITOBOX Courier`;
-      const body = `Estimado/a ${clientData.name},\n\nEsperamos que se encuentre bien.\n\nSaludos,\nEquipo ITOBOX Courier`;
-      const mailtoUrl = `mailto:${clientData.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.open(mailtoUrl);
-    }
+    console.log('Sending email to:', clientData?.email);
+  };
+
+  const handleCreateOrder = () => {
+    navigate(`/orders/create?clientId=${clientId}`);
+  };
+
+  const handleCreateInvoice = () => {
+    navigate(`/billing/create?clientId=${clientId}`);
   };
 
   if (loading) {
     return (
-      <div className="p-6 lg:p-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="h-40 bg-gray-200 rounded-lg"></div>
-              <div className="h-60 bg-gray-200 rounded-lg"></div>
-            </div>
-            <div className="space-y-6">
-              <div className="h-32 bg-gray-200 rounded-lg"></div>
-              <div className="h-48 bg-gray-200 rounded-lg"></div>
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   if (!clientData) {
     return (
-      <div className="p-6 lg:p-8">
-        <div className="text-center py-12">
-          <User className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Cliente no encontrado</h3>
-          <p className="mt-1 text-sm text-gray-500">El cliente solicitado no existe o ha sido eliminado.</p>
-          <div className="mt-6">
-            <button
-              onClick={() => navigate('clients')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver a Clientes
-            </button>
-          </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Cliente no encontrado</h2>
+          <p className="text-gray-600 mb-4">El cliente que buscas no existe o ha sido eliminado.</p>
+          <button
+            onClick={() => navigate('/clients')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Volver a Clientes
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-6 lg:p-8 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-4">
-          <button 
-            onClick={() => navigate('clients')}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver
-          </button>
-          <div className="flex items-center space-x-3">
-            <img
-              className="h-12 w-12 rounded-full"
-              src={clientData.avatar}
-              alt={clientData.name}
-            />
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/clients')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Volver</span>
+            </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900">
                 {clientData.name}
               </h1>
-              <p className="text-sm text-gray-500">
-                {clientData.company}
+              <p className="text-gray-600">
+                Cliente desde {formatDate(clientData.registrationDate)}
               </p>
             </div>
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(clientData.status)}`}>
-            {getStatusText(clientData.status)}
-          </span>
-          
-          <div className="flex space-x-2">
-            <button
-              onClick={handleSendEmail}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-            <button
-              onClick={handleEdit}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <Edit3 className="h-4 w-4" />
-            </button>
-            <button
-              onClick={handleDelete}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-red-600 bg-white hover:bg-gray-50"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+          <div className="flex items-center space-x-3">
+            <StatusBadge status={clientData.status} type="client" />
+            <div className="flex space-x-2">
+              <button
+                onClick={handleSendEmail}
+                className="flex items-center space-x-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                <span>Email</span>
+              </button>
+              <button
+                onClick={handleEdit}
+                className="flex items-center space-x-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Editar</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Package className="h-8 w-8 text-blue-600" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Gastado</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(clientData.totalSpent)}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Paquetes</p>
-              <p className="text-2xl font-bold text-gray-900">{clientData.stats.totalPackages}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <DollarSign className="h-8 w-8 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Gastado</p>
-              <p className="text-2xl font-bold text-gray-900">${clientData.stats.totalSpent.toLocaleString()}</p>
+            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-green-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <TrendingUp className="h-8 w-8 text-purple-600" />
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Órdenes</p>
+              <p className="text-2xl font-bold text-gray-900">{clientData.totalOrders}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Valor Promedio</p>
-              <p className="text-2xl font-bold text-gray-900">${clientData.stats.avgOrderValue}</p>
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+              <Package className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Star className="h-8 w-8 text-yellow-600" />
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Promedio por Orden</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(clientData.averageOrderValue)}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Rating</p>
-              <p className="text-2xl font-bold text-gray-900">{clientData.stats.rating}/5</p>
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Balance Actual</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(clientData.currentBalance)}</p>
+            </div>
+            <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+              <FileText className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          {['overview', 'packages', 'billing'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${
-                activeTab === tab
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab === 'overview' && <User className="inline mr-2 h-4 w-4" />}
-              {tab === 'packages' && <Package className="inline mr-2 h-4 w-4" />}
-              {tab === 'billing' && <CreditCard className="inline mr-2 h-4 w-4" />}
-              {tab}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Left Column - Client Info & Tabs */}
         <div className="lg:col-span-2 space-y-6">
-          {activeTab === 'overview' && (
-            <>
-              {/* Client Info */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <Building className="mr-2 h-5 w-5" />
-                  Información del Cliente
-                </h3>
+          
+          {/* Client Info Card */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Información del Cliente</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <Building className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500">Empresa</p>
+                    <p className="font-medium text-gray-900">{clientData.company}</p>
+                  </div>
+                </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-3">
+                  <User className="w-5 h-5 text-gray-400" />
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Email</label>
-                    <p className="mt-1 text-sm text-gray-900 flex items-center">
-                      <Mail className="mr-1 h-4 w-4" />
-                      {clientData.email}
-                    </p>
+                    <p className="text-sm text-gray-500">Persona de Contacto</p>
+                    <p className="font-medium text-gray-900">{clientData.contactPerson}</p>
                   </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <Mail className="w-5 h-5 text-gray-400" />
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Teléfono</label>
-                    <p className="mt-1 text-sm text-gray-900 flex items-center">
-                      <Phone className="mr-1 h-4 w-4" />
-                      {clientData.phone}
-                    </p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-500">Dirección</label>
-                    <p className="mt-1 text-sm text-gray-900 flex items-start">
-                      <MapPin className="mr-1 h-4 w-4 mt-0.5" />
-                      {clientData.address}, {clientData.city}, {clientData.country}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Tax ID</label>
-                    <p className="mt-1 text-sm text-gray-900">{clientData.taxId}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Fecha de Registro</label>
-                    <p className="mt-1 text-sm text-gray-900 flex items-center">
-                      <Calendar className="mr-1 h-4 w-4" />
-                      {clientData.joinDate}
-                    </p>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium text-gray-900">{clientData.email}</p>
                   </div>
                 </div>
               </div>
-
-              {/* Performance Metrics */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <Activity className="mr-2 h-5 w-5" />
-                  Métricas de Rendimiento
-                </h3>
-                
-                <div className="space-y-4">
+              
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <Phone className="w-5 h-5 text-gray-400" />
                   <div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Entregas a Tiempo</span>
-                      <span className="text-gray-900">{Math.round((clientData.stats.onTimeDeliveries / clientData.stats.totalPackages) * 100)}%</span>
-                    </div>
-                    <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-600 h-2 rounded-full" 
-                        style={{ width: `${(clientData.stats.onTimeDeliveries / clientData.stats.totalPackages) * 100}%` }}
-                      ></div>
-                    </div>
+                    <p className="text-sm text-gray-500">Teléfono</p>
+                    <p className="font-medium text-gray-900">{clientData.phone}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <MapPin className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500">Dirección</p>
+                    <p className="font-medium text-gray-900">{clientData.address}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <Calendar className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500">Último Pedido</p>
+                    <p className="font-medium text-gray-900">{formatDate(clientData.lastOrderDate)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Preferred Services */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-500 mb-2">Servicios Preferidos</p>
+              <div className="flex flex-wrap gap-2">
+                {clientData.preferredServices.map((service, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                  >
+                    {service}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            {clientData.notes && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <p className="text-sm font-medium text-gray-500 mb-2">Notas</p>
+                <p className="text-gray-700">{clientData.notes}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Tabs */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg">
+            <div className="border-b border-gray-200/50">
+              <nav className="flex space-x-8 px-6">
+                {[
+                  { id: 'orders', label: 'Órdenes', icon: Package, count: orders.length },
+                  { id: 'invoices', label: 'Facturas', icon: FileText, count: invoices.length },
+                  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        activeTab === tab.id
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                      {tab.count && (
+                        <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Tab Content */}
+            <div className="p-6">
+              {activeTab === 'orders' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-lg font-semibold text-gray-900">Órdenes Recientes</h4>
+                    <button
+                      onClick={handleCreateOrder}
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Nueva Orden</span>
+                    </button>
                   </div>
                   
-                  <div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Rating de Satisfacción</span>
-                      <span className="text-gray-900">{clientData.stats.rating}/5</span>
-                    </div>
-                    <div className="flex mt-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`h-4 w-4 ${
-                            star <= clientData.stats.rating
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {activeTab === 'packages' && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-                <Package className="mr-2 h-5 w-5" />
-                Paquetes Recientes
-              </h3>
-              
-              <div className="space-y-4">
-                {clientData.recentPackages.map((pkg) => (
-                  <div key={pkg.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                          <h4 className="text-sm font-medium text-gray-900">{pkg.trackingNumber}</h4>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPackageStatusColor(pkg.status)}`}>
-                            {pkg.status}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-sm text-gray-500">{pkg.description}</p>
-                        <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                          <span>Fecha: {pkg.date}</span>
-                          <span>Valor: ${pkg.value}</span>
+                  <div className="space-y-3">
+                    {orders.map((order) => (
+                      <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <p className="font-medium text-gray-900">{order.orderNumber}</p>
+                              <p className="text-sm text-gray-500">{formatDate(order.date)}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">{order.services.join(', ')}</p>
+                              {order.trackingNumber && (
+                                <p className="text-xs text-blue-600 font-mono">{order.trackingNumber}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <p className="font-bold text-gray-900">{formatCurrency(order.amount)}</p>
+                            <StatusBadge status={order.status} type="order" />
+                            <button
+                              onClick={() => navigate(`/orders/${order.id}`)}
+                              className="text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => navigate('package-detail', { id: pkg.id })}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          Ver detalles
-                        </button>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-                
-                <div className="text-center pt-4">
-                  <button
-                    onClick={() => navigate('packages', { client: clientId! })}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  >
-                    Ver todos los paquetes →
-                  </button>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {activeTab === 'billing' && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-                <CreditCard className="mr-2 h-5 w-5" />
-                Información de Facturación
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Método de Pago</label>
-                    <p className="mt-1 text-sm text-gray-900">{clientData.billingInfo.paymentMethod}</p>
+              {activeTab === 'invoices' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-lg font-semibold text-gray-900">Facturas</h4>
+                    <button
+                      onClick={handleCreateInvoice}
+                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Nueva Factura</span>
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Límite de Crédito</label>
-                    <p className="mt-1 text-sm text-gray-900">${clientData.billingInfo.creditLimit.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Balance Actual</label>
-                    <p className={`mt-1 text-sm font-medium ${clientData.billingInfo.currentBalance === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${clientData.billingInfo.currentBalance.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Último Pago</label>
-                    <p className="mt-1 text-sm text-gray-900">{clientData.billingInfo.lastPayment}</p>
+                  
+                  <div className="space-y-3">
+                    {invoices.map((invoice) => (
+                      <div key={invoice.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{invoice.invoiceNumber}</p>
+                            <p className="text-sm text-gray-500">{invoice.description}</p>
+                            <p className="text-xs text-gray-400">
+                              Emitida: {formatDate(invoice.date)} • Vence: {formatDate(invoice.dueDate)}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <p className="font-bold text-gray-900">{formatCurrency(invoice.amount)}</p>
+                            <StatusBadge status={invoice.status} type="invoice" />
+                            <button
+                              onClick={() => navigate(`/billing/invoice/${invoice.id}`)}
+                              className="text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                
-                <div className="pt-4 border-t">
+              )}
+
+              {activeTab === 'analytics' && (
+                <div className="text-center py-12">
+                  <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">
+                    Analytics del Cliente
+                  </h4>
+                  <p className="text-gray-500 mb-4">
+                    Análisis detallado del comportamiento y métricas del cliente
+                  </p>
                   <button
-                    onClick={() => navigate('billing', { client: clientId! })}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    onClick={() => navigate(`/analytics/client/${clientId}`)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Ver Historial de Facturación
+                    Ver Analytics Completo
                   </button>
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Right Column - Actions & Credit Info */}
         <div className="space-y-6">
+          
           {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Acciones Rápidas</h3>
-            
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
             <div className="space-y-3">
               <button
-                onClick={() => navigate('package-create', { client: clientId! })}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                onClick={handleCreateOrder}
+                className="w-full flex items-center space-x-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
               >
-                <Package className="mr-2 h-4 w-4" />
-                Crear Paquete
+                <Plus className="w-4 h-4" />
+                <span>Nueva Orden</span>
               </button>
+              
+              <button
+                onClick={handleCreateInvoice}
+                className="w-full flex items-center space-x-3 px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Nueva Factura</span>
+              </button>
+              
               <button
                 onClick={handleSendEmail}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                className="w-full flex items-center space-x-3 px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
               >
-                <Send className="mr-2 h-4 w-4" />
-                Enviar Email
+                <Send className="w-4 h-4" />
+                <span>Enviar Email</span>
               </button>
+              
               <button
-                onClick={() => navigate('billing-create', { client: clientId! })}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                onClick={() => navigate(`/analytics/client/${clientId}`)}
+                className="w-full flex items-center space-x-3 px-4 py-3 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors"
               >
-                <FileText className="mr-2 h-4 w-4" />
-                Crear Factura
-              </button>
-              <button
-                onClick={handleEdit}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <Edit3 className="mr-2 h-4 w-4" />
-                Editar Cliente
+                <TrendingUp className="w-4 h-4" />
+                <span>Ver Analytics</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Estadísticas Rápidas</h3>
-            
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Paquetes este mes:</span>
-                <span className="text-sm text-gray-900 font-medium">8</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Gasto este mes:</span>
-                <span className="text-sm text-gray-900 font-medium">$425.50</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Última actividad:</span>
-                <span className="text-sm text-gray-900 font-medium">{clientData.stats.lastOrder}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Días como cliente:</span>
-                <span className="text-sm text-gray-900 font-medium">
-                  {Math.floor((new Date().getTime() - new Date(clientData.joinDate).getTime()) / (1000 * 60 * 60 * 24))}
+          {/* Credit Information */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Información Crediticia</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Límite de Crédito:</span>
+                <span className="font-bold text-gray-900">
+                  {formatCurrency(clientData.creditLimit)}
                 </span>
               </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Balance Actual:</span>
+                <span className="font-bold text-gray-900">
+                  {formatCurrency(clientData.currentBalance)}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Crédito Disponible:</span>
+                <span className="font-bold text-green-600">
+                  {formatCurrency(clientData.creditLimit - clientData.currentBalance)}
+                </span>
+              </div>
+              
+              {/* Credit Usage Bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>Uso de Crédito</span>
+                  <span>{Math.round((clientData.currentBalance / clientData.creditLimit) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(clientData.currentBalance / clientData.creditLimit) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Contact Info */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Contacto Rápido</h3>
+          {/* Client Rating */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Calificación del Cliente</h3>
+            <div className="text-center">
+              <div className="flex justify-center space-x-1 mb-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star 
+                    key={star}
+                    className={`w-6 h-6 ${star <= 4 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                  />
+                ))}
+              </div>
+              <p className="text-2xl font-bold text-gray-900">4.0</p>
+              <p className="text-sm text-gray-500">Basado en {clientData.totalOrders} órdenes</p>
+            </div>
             
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Puntualidad de Pago</span>
+                <span className="font-medium text-green-600">Excelente</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Frecuencia de Pedidos</span>
+                <span className="font-medium text-blue-600">Alta</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Valor Promedio</span>
+                <span className="font-medium text-purple-600">Medio-Alto</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Actividad Reciente</h3>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3 text-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div>
+                  <p className="text-gray-900">Pago recibido</p>
+                  <p className="text-gray-500">Hace 2 días</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3 text-sm">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div>
+                  <p className="text-gray-900">Nueva orden creada</p>
+                  <p className="text-gray-500">Hace 5 días</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3 text-sm">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <div>
+                  <p className="text-gray-900">Factura enviada</p>
+                  <p className="text-gray-500">Hace 1 semana</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3 text-sm">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <div>
+                  <p className="text-gray-900">Perfil actualizado</p>
+                  <p className="text-gray-500">Hace 2 semanas</p>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => navigate(`/clients/${clientId}/activity`)}
+              className="w-full mt-4 pt-4 border-t border-gray-200 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              Ver toda la actividad
+            </button>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="bg-red-50/80 backdrop-blur-xl rounded-2xl p-6 border border-red-200/50 shadow-lg">
+            <h3 className="text-lg font-semibold text-red-900 mb-4">Zona de Peligro</h3>
             <div className="space-y-3">
               <button
-                onClick={() => window.open(`tel:${clientData.phone}`)}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                onClick={() => navigate(`/clients/${clientId}/suspend`)}
+                className="w-full flex items-center space-x-3 px-4 py-3 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors"
               >
-                <Phone className="mr-2 h-4 w-4" />
-                Llamar
+                <AlertCircle className="w-4 h-4" />
+                <span>Suspender Cliente</span>
               </button>
+              
               <button
-                onClick={handleSendEmail}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                onClick={() => setShowDeleteModal(true)}
+                className="w-full flex items-center space-x-3 px-4 py-3 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
               >
-                <Mail className="mr-2 h-4 w-4" />
-                Email
+                <Trash2 className="w-4 h-4" />
+                <span>Eliminar Cliente</span>
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">Editar Cliente</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <AlertCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="text-center py-8">
+              <Edit className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                Formulario de Edición
+              </h4>
+              <p className="text-gray-500 mb-4">
+                Aquí iría el formulario para editar la información del cliente
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('Saving client changes');
+                    setShowEditModal(false);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Eliminar Cliente</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              ¿Estás seguro de que quieres eliminar a {clientData.name}? 
+              Esta acción no se puede deshacer y se perderán todos los datos asociados.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
