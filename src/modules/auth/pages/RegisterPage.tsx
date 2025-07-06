@@ -31,7 +31,10 @@ interface FormErrors {
 }
 
 export const RegisterPage: React.FC = () => {
-  const { navigate } = useNavigation();
+  const navigate = (path: string) => {
+  window.location.hash = path;
+  window.location.reload();
+};
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
