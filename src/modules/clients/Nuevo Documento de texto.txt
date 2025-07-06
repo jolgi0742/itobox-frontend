@@ -1,0 +1,649 @@
+import React, { useState } from 'react';
+import { X, User, Building, Mail, Phone, MapPin, CreditCard, Star, Package } from 'lucide-react';
+
+// ===== INTERFACES =====
+interface ClientData {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company?: string;
+  position?: string;
+  mailboxNumber: string; // ✅ Número de casillero
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  idNumber: string;
+  clientType: 'individual' | 'business';
+  preferredContact: 'email' | 'phone' | 'whatsapp';
+  creditLimit: number;
+  notes: string;
+  isVip: boolean;
+  referredBy?: string;
+}
+
+interface NewClientModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (clientData: ClientData) => void;
+}
+
+const CLIENT_TYPES = [
+  { value: 'individual', label: 'Cliente Individual', icon: User, color: 'bg-blue-100 text-blue-800' },
+  { value: 'business', label: 'Empresa/Negocio', icon: Building, color: 'bg-purple-100 text-purple-800' }
+];
+
+const CONTACT_PREFERENCES = [
+  { value: 'email', label: 'Email', icon: Mail },
+  { value: 'phone', label: 'Teléfono', icon: Phone },
+  { value: 'whatsapp', label: 'WhatsApp', icon: Phone }
+];
+
+const COUNTRIES = [
+  'Costa Rica', 'Estados Unidos', 'México', 'Colombia', 'Panamá', 'Guatemala', 'Nicaragua', 'Honduras', 'El Salvador'
+];
+
+export const NewClientModal: React.FC<NewClientModalProps> = ({ isOpen, onClose, onSubmit }) => {
+  // ===== ESTADOS =====
+  const [formData, setFormData] = useState<ClientData>({
+    id: `CLI${Date.now().toString().slice(-6)}`,
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    company: '',
+    position: '',
+    mailboxNumber: '', // ✅ Campo de casillero
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'Costa Rica',
+    idNumber: '',
+    clientType: 'individual',
+    preferredContact: 'email',
+    creditLimit: 1000,
+    notes: '',
+    isVip: false,
+    referredBy: ''
+  });
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ===== FUNCIONES =====
+  const generateMailboxNumber = () => {
+    const prefix = 'CR';
+    const number = Math.floor(10000 + Math.random() * 90000);
+    const mailboxNumber = `${prefix}-${number}`;
+    setFormData(prev => ({ ...prev, mailboxNumber }));
+  };
+
+  const validateStep = (step: number): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (step === 1) {
+      if (!formData.firstName.trim()) newErrors.firstName = 'Nombre es requerido';
+      if (!formData.lastName.trim()) newErrors.lastName = 'Apellido es requerido';
+      if (!formData.email.trim()) {
+        newErrors.email = 'Email es requerido';
+      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        newErrors.email = 'Email inválido';
+      }
+      if (!formData.phone.trim()) newErrors.phone = 'Teléfono es requerido';
+      if (!formData.idNumber.trim()) newErrors.idNumber = 'Número de identificación es requerido';
+
+      if (formData.clientType === 'business' && !formData.company?.trim()) {
+        newErrors.company = 'Nombre de empresa es requerido para clientes empresariales';
+      }
+    }
+
+    if (step === 2) {
+      if (!formData.mailboxNumber.trim()) newErrors.mailboxNumber = 'Número de casillero es requerido';
+      if (!formData.address.trim()) newErrors.address = 'Dirección es requerida';
+      if (!formData.city.trim()) newErrors.city = 'Ciudad es requerida';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (validateStep(2)) {
+      onSubmit(formData);
+      console.log('👤 Nuevo cliente creado:', formData);
+    }
+  };
+
+  const updateFormData = (field: keyof ClientData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Limpiar error del campo
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  if (!isOpen) return null;
+
+  // ===== RENDER =====
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-green-600 to-blue-600 px-6 py-4 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <User className="w-6 h-6" />
+              <h2 className="text-xl font-bold">Nuevo Cliente</h2>
+            </div>
+            <button onClick={onClose} className="text-white hover:text-gray-200">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Progress indicator */}
+          <div className="flex items-center space-x-4 mt-4">
+            {[1, 2].map((step) => (
+              <div key={step} className="flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  step === currentStep ? 'bg-white text-green-600' :
+                  step < currentStep ? 'bg-yellow-400 text-white' : 'bg-green-400 text-white'
+                }`}>
+                  {step}
+                </div>
+                {step < 2 && (
+                  <div className={`w-12 h-1 mx-2 ${step < currentStep ? 'bg-yellow-400' : 'bg-green-400'}`} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="text-sm mt-2 opacity-90">
+            {currentStep === 1 && 'Información Personal y Contacto'}
+            {currentStep === 2 && 'Dirección y Configuración de Casillero'}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          {/* Paso 1: Información Personal */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              {/* Tipo de Cliente */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Tipo de Cliente
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {CLIENT_TYPES.map((type) => {
+                    const Icon = type.icon;
+                    return (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => updateFormData('clientType', type.value)}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                          formData.clientType === type.value
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            formData.clientType === type.value ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-gray-900">{type.label}</h3>
+                            <p className="text-xs text-gray-500">
+                              {type.value === 'individual' ? 'Persona física' : 'Empresa o negocio'}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Información Personal */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => updateFormData('firstName', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                      errors.firstName ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Juan"
+                  />
+                  {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Apellido *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.lastName}
+                    onChange={(e) => updateFormData('lastName', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                      errors.lastName ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Pérez"
+                  />
+                  {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => updateFormData('email', e.target.value)}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                        errors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="juan@email.com"
+                    />
+                  </div>
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Teléfono *
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => updateFormData('phone', e.target.value)}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                        errors.phone ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="+506 8888-9999"
+                    />
+                  </div>
+                  {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Número de Identificación *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.idNumber}
+                    onChange={(e) => updateFormData('idNumber', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                      errors.idNumber ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="1-1234-5678 (cédula) o 3-101-123456 (jurídica)"
+                  />
+                  {errors.idNumber && <p className="text-red-500 text-sm mt-1">{errors.idNumber}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ID Cliente
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.id}
+                    onChange={(e) => updateFormData('id', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    readOnly
+                  />
+                  <p className="text-xs text-gray-500 mt-1">ID generado automáticamente</p>
+                </div>
+              </div>
+
+              {/* Información Empresarial (si es business) */}
+              {formData.clientType === 'business' && (
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Información Empresarial</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre de la Empresa *
+                      </label>
+                      <div className="relative">
+                        <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.company}
+                          onChange={(e) => updateFormData('company', e.target.value)}
+                          className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                            errors.company ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                          placeholder="Empresa S.A."
+                        />
+                      </div>
+                      {errors.company && <p className="text-red-500 text-sm mt-1">{errors.company}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Cargo/Posición
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.position}
+                        onChange={(e) => updateFormData('position', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Gerente de Compras"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Preferencias de Contacto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Método de Contacto Preferido
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {CONTACT_PREFERENCES.map((contact) => {
+                    const Icon = contact.icon;
+                    return (
+                      <button
+                        key={contact.value}
+                        type="button"
+                        onClick={() => updateFormData('preferredContact', contact.value)}
+                        className={`p-3 border-2 rounded-lg text-center transition-all ${
+                          formData.preferredContact === contact.value
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <Icon className={`w-5 h-5 mx-auto mb-1 ${
+                          formData.preferredContact === contact.value ? 'text-blue-600' : 'text-gray-500'
+                        }`} />
+                        <div className="text-sm font-medium">{contact.label}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Configuraciones Adicionales */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Límite de Crédito
+                  </label>
+                  <div className="relative">
+                    <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="number"
+                      value={formData.creditLimit}
+                      onChange={(e) => updateFormData('creditLimit', parseFloat(e.target.value) || 0)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="1000"
+                      min="0"
+                      step="100"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Límite en USD</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Referido por
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.referredBy}
+                    onChange={(e) => updateFormData('referredBy', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Nombre del cliente que lo refirió"
+                  />
+                </div>
+              </div>
+
+              {/* Cliente VIP */}
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="isVip"
+                  checked={formData.isVip}
+                  onChange={(e) => updateFormData('isVip', e.target.checked)}
+                  className="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500"
+                />
+                <label htmlFor="isVip" className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <span>Cliente VIP (atención prioritaria)</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Paso 2: Dirección y Casillero */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              {/* Configuración de Casillero */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-4">
+                  <Package className="w-6 h-6 text-blue-600" />
+                  <h3 className="text-lg font-medium text-blue-900">Configuración de Casillero</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-blue-700 mb-1">
+                      Número de Casillero *
+                    </label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={formData.mailboxNumber}
+                        onChange={(e) => updateFormData('mailboxNumber', e.target.value)}
+                        className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          errors.mailboxNumber ? 'border-red-500' : 'border-blue-300'
+                        }`}
+                        placeholder="CR-12345"
+                      />
+                      <button
+                        type="button"
+                        onClick={generateMailboxNumber}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        Generar
+                      </button>
+                    </div>
+                    {errors.mailboxNumber && <p className="text-red-500 text-sm mt-1">{errors.mailboxNumber}</p>}
+                    <p className="text-xs text-blue-600 mt-1">
+                      Formato: CR-XXXXX (automático) o personalizado
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-blue-700 mb-1">
+                      País
+                    </label>
+                    <select
+                      value={formData.country}
+                      onChange={(e) => updateFormData('country', e.target.value)}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {COUNTRIES.map(country => (
+                        <option key={country} value={country}>{country}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Instrucciones para el cliente:</strong><br />
+                    Use este número de casillero "{formData.mailboxNumber || 'CR-XXXXX'}" como dirección de envío 
+                    en todas sus compras online. Los paquetes llegarán a nuestro warehouse en Miami y 
+                    serán enviados automáticamente a Costa Rica.
+                  </p>
+                </div>
+              </div>
+
+              {/* Dirección Local */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Dirección de Entrega en Costa Rica</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Dirección Completa *
+                    </label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                      <textarea
+                        value={formData.address}
+                        onChange={(e) => updateFormData('address', e.target.value)}
+                        className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                          errors.address ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        rows={3}
+                        placeholder="Calle, número, apartamento, colonia, referencias..."
+                      />
+                    </div>
+                    {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ciudad *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => updateFormData('city', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                        errors.city ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="San José"
+                    />
+                    {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Provincia/Estado
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.state}
+                      onChange={(e) => updateFormData('state', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="San José"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Código Postal
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.zipCode}
+                      onChange={(e) => updateFormData('zipCode', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="10101"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Notas Adicionales */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notas y Observaciones
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => updateFormData('notes', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  rows={3}
+                  placeholder="Instrucciones especiales de entrega, horarios de preferencia, etc."
+                />
+              </div>
+
+              {/* Resumen del Cliente */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900 mb-3">Resumen del Cliente</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p><strong>Nombre:</strong> {formData.firstName} {formData.lastName}</p>
+                    <p><strong>Email:</strong> {formData.email}</p>
+                    <p><strong>Teléfono:</strong> {formData.phone}</p>
+                    <p><strong>Tipo:</strong> {formData.clientType === 'individual' ? 'Individual' : 'Empresa'}</p>
+                  </div>
+                  <div>
+                    <p><strong>Casillero:</strong> {formData.mailboxNumber || 'No asignado'}</p>
+                    <p><strong>País:</strong> {formData.country}</p>
+                    <p><strong>Límite de Crédito:</strong> ${formData.creditLimit}</p>
+                    <p><strong>Cliente VIP:</strong> {formData.isVip ? '⭐ Sí' : 'No'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={currentStep === 1 ? onClose : () => setCurrentStep(prev => prev - 1)}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              {currentStep === 1 ? 'Cancelar' : 'Anterior'}
+            </button>
+
+            <div className="flex items-center space-x-3">
+              {currentStep < 2 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Siguiente
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Crear Cliente
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NewClientModal; '

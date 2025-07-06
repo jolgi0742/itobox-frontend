@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/services/warehouseService.ts - FIXED para Producción
 
 // 🔧 FIX: Usar variable de entorno o fallback a producción
@@ -11,143 +12,110 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Interfaces compatibles con archivos existentes
+=======
+// src/services/warehouseService.ts
+// ITOBOX Courier - WAREHOUSE-USA Edition - Production Ready
+
+>>>>>>> upgrade-v4.0
 export interface WHRPackage {
-  id?: string;
-  whrNumber?: string;
+  id: string;
+  whrNumber: string;
   invoiceNumber: string;
   poNumber: string;
-  shipper: string;
-  consignee: string;
   carrier: string;
   partida: string;
-  description: string;
-  quantity: number;
-  unitValue: number;
+  shipperName: string;
+  shipperAddress: string;
+  consigneeName: string;
+  consigneeAddress: string;
+  pieces: number;
   weight: number;
   length: number;
   width: number;
   height: number;
-  estimatedArrivalCR: string;
-  volume?: number;
-  volumeWeight?: number;
-  chargeableWeight?: number;
-  totalValue?: number;
-  status?: string;
-  transportType?: string;
-  emailSent?: boolean;
-  createdAt?: string;
-  // Para compatibilidad con archivos existentes
-  warehouseUSA?: {
-    invoiceNumber: string;
-    carrier: string;
-    completionRate: number;
-    avgUnitValue: number;
-    withInvoice: number;
-    withPO: number;
-    withCarrier: number;
-    withPartida: number;
-  };
-  calculations?: {
-    volume: number;
-    volumeWeight: number;
-    chargeableWeight: number;
-    totalValue: number;
-  };
-}
-
-export interface WHRStats {
-  total: number;
-  pending: number;
-  classified_awb: number;
-  classified_bl: number;
-  averageUnitValue: number;
+  unitValue: number;
   totalValue: number;
-  // Para compatibilidad con archivos existentes
-  totalWHRs: number;
-  classifiedAWB: number;
-  classifiedBL: number;
-  warehouseUSA: {
-    completionRate: number;
-    avgUnitValue: number;
-    withInvoice: number;
-    withPO: number;
-    withCarrier: number;
-    withPartida: number;
-  };
-  recentWHRs?: WHRPackage[];
+  volume: number;
+  volumeWeight: number;
+  description: string;
+  status: 'pending' | 'classified' | 'email_sent';
+  classification: 'aereo' | 'maritimo' | null;
+  estimatedArrivalCR: string;
+  emailSent: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface WHRCreateData {
   invoiceNumber: string;
   poNumber: string;
-  shipper: string;
-  consignee: string;
   carrier: string;
-  partida?: string;
-  partidaArancelaria?: string; // Alias para compatibilidad
-  description: string;
-  quantity: number;
-  unitValue: number;
+  partida: string;
+  shipperName: string;
+  shipperAddress: string;
+  consigneeName: string;
+  consigneeAddress: string;
+  pieces: number;
   weight: number;
   length: number;
   width: number;
   height: number;
-  estimatedArrivalCR: string;
-  declaredValue?: number; // Para compatibilidad
-  serviceType?: string; // Para compatibilidad
+  unitValue: number;
+  description: string;
 }
 
-export interface WHRResponse {
-  success: boolean;
-  message: string;
-  data?: WHRPackage & {
-    whrNumber?: string;
-    id?: string;
-    shipper?: string;
-    consignee?: string;
-    warehouseUSA?: {
-      invoiceNumber: string;
-      carrier: string;
-    };
-    calculations?: {
-      volume: number;
-      volumeWeight: number;
-      chargeableWeight: number;
-      totalValue: number;
-    };
+export interface WHRStats {
+  totalWHRs: number;
+  totalWeight: number;
+  totalValue: number;
+  totalPieces: number;
+  byClassification: {
+    aereo: number;
+    maritimo: number;
+    pending: number;
   };
-  whr?: WHRPackage;
-  whrNumber?: string;
-  // Para compatibilidad con archivos existentes
-  id?: string;
-  shipper?: string;
-  consignee?: string;
-  warehouseUSA?: {
-    invoiceNumber: string;
-    carrier: string;
-  };
-  calculations?: {
-    volume: number;
-    volumeWeight: number;
-    chargeableWeight: number;
-    totalValue: number;
-  };
+  emailSentRate: number;
+  classificationRate: number;
 }
 
-export interface WHRListResponse {
-  success: boolean;
-  data: {
-    whrs: WHRPackage[];
-    stats: WHRStats;
-    pagination?: any;
-  };
-  stats?: WHRStats;
-}
+// Configuración de API - PRODUCCIÓN
+const getApiUrl = (): string => {
+  // Detectar entorno
+  const isProduction = window.location.hostname !== 'localhost';
+  
+  if (isProduction) {
+    // URL de producción - Backend en Render
+    return 'https://itobox-backend.onrender.com/api';
+  } else {
+    // URL de desarrollo - Backend local
+    return 'http://localhost:5000/api';
+  }
+};
 
-// Clase con métodos estáticos para compatibilidad
-export class WarehouseService {
-  private static async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+const API_BASE_URL = getApiUrl();
+
+console.log(`🌐 WAREHOUSE-USA API URL: ${API_BASE_URL}`);
+
+export class OperativeWarehouseService {
+  private static instance: OperativeWarehouseService;
+  private baseUrl: string;
+
+  private constructor() {
+    this.baseUrl = `${API_BASE_URL}/warehouse`;
+    console.log(`🏭 OperativeWarehouseService initialized: ${this.baseUrl}`);
+  }
+
+  public static getInstance(): OperativeWarehouseService {
+    if (!OperativeWarehouseService.instance) {
+      OperativeWarehouseService.instance = new OperativeWarehouseService();
+    }
+    return OperativeWarehouseService.instance;
+  }
+
+  // Crear nuevo WHR
+  async createWHR(data: WHRCreateData): Promise<WHRPackage> {
     try {
+<<<<<<< HEAD
       const url = `${API_BASE_URL}${endpoint}`;
       
       // Log para debugging
@@ -156,17 +124,24 @@ export class WarehouseService {
       }
 
       const response = await fetch(url, {
+=======
+      console.log('📦 Creating WHR with data:', data);
+      
+      const response = await fetch(`${this.baseUrl}/whr`, {
+        method: 'POST',
+>>>>>>> upgrade-v4.0
         headers: {
           'Content-Type': 'application/json',
-          ...options.headers,
         },
-        ...options,
+        body: JSON.stringify(data),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Failed to create WHR'}`);
       }
 
+<<<<<<< HEAD
       const data = await response.json();
       
       // Log para debugging
@@ -177,297 +152,208 @@ export class WarehouseService {
       return data;
     } catch (error) {
       console.error('❌ API Error:', error);
+=======
+      const result = await response.json();
+      console.log('✅ WHR created successfully:', result.data);
+      return result.data;
+    } catch (error) {
+      console.error('❌ Error creating WHR:', error);
+>>>>>>> upgrade-v4.0
       throw error;
     }
   }
 
-  // Health check
-  static async healthCheck(): Promise<{ success: boolean; message: string; timestamp: string; data?: any }> {
+  // Obtener todos los WHRs
+  async getWHRs(limit: number = 50, search?: string): Promise<WHRPackage[]> {
     try {
-      const response = await this.makeRequest<{ success: boolean; message: string; timestamp: string }>('/health');
-      return { ...response, data: { version: '1.0.0' } };
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      if (search) {
+        params.append('search', search);
+      }
+
+      const response = await fetch(`${this.baseUrl}/whr?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch WHRs`);
+      }
+
+      const result = await response.json();
+      console.log(`📋 Retrieved ${result.data?.length || 0} WHRs`);
+      return result.data || [];
     } catch (error) {
-      throw error;
+      console.error('❌ Error fetching WHRs:', error);
+      return [];
     }
   }
 
   // Obtener estadísticas
-  static async getStats(): Promise<{ success: boolean; data: WHRStats }> {
+  async getStats(): Promise<WHRStats> {
     try {
-      const response = await this.makeRequest<{ success: boolean; data: WHRStats }>('/stats');
+      const response = await fetch(`${this.baseUrl}/stats`);
       
-      // Transformar para compatibilidad
-      if (response.data) {
-        response.data.totalWHRs = response.data.total;
-        response.data.classifiedAWB = response.data.classified_awb;
-        response.data.classifiedBL = response.data.classified_bl;
-        
-        response.data.warehouseUSA = {
-          completionRate: Math.round((response.data.classified_awb + response.data.classified_bl) / Math.max(response.data.total, 1) * 100),
-          avgUnitValue: response.data.averageUnitValue,
-          withInvoice: Math.floor(response.data.total * 0.8),
-          withPO: Math.floor(response.data.total * 0.9),
-          withCarrier: response.data.total,
-          withPartida: Math.floor(response.data.total * 0.7),
-        };
-        
-        // Agregar datos de ejemplo para recentWHRs si no existen
-        response.data.recentWHRs = response.data.recentWHRs || [];
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch stats`);
       }
-      
-      return response;
+
+      const result = await response.json();
+      console.log('📊 Stats retrieved:', result.data);
+      return result.data;
     } catch (error) {
-      throw error;
-    }
-  }
-
-  // Listar WHRs con parámetros opcionales
-  static async listWHRs(params: { limit?: number } = {}): Promise<WHRListResponse> {
-    try {
-      const response = await this.makeRequest<{
-        success: boolean;
-        data: WHRPackage[];
-        stats: WHRStats;
-      }>('/whr');
-      
-      // Transformar para compatibilidad con el formato esperado
-      const transformedResponse: WHRListResponse = {
-        success: response.success,
-        data: {
-          whrs: response.data || [],
-          stats: response.stats || {
-            total: 0,
-            pending: 0,
-            classified_awb: 0,
-            classified_bl: 0,
-            averageUnitValue: 0,
-            totalValue: 0,
-            totalWHRs: 0,
-            classifiedAWB: 0,
-            classifiedBL: 0,
-            warehouseUSA: {
-              completionRate: 0,
-              avgUnitValue: 0,
-              withInvoice: 0,
-              withPO: 0,
-              withCarrier: 0,
-              withPartida: 0,
-            }
-          },
-          pagination: {
-            page: 1,
-            limit: params.limit || 10,
-            total: (response.data || []).length
-          }
-        }
-      };
-
-      // Transformar stats para compatibilidad
-      if (transformedResponse.data.stats) {
-        const stats = transformedResponse.data.stats;
-        stats.totalWHRs = stats.total;
-        stats.classifiedAWB = stats.classified_awb;
-        stats.classifiedBL = stats.classified_bl;
-        
-        stats.warehouseUSA = {
-          completionRate: Math.round((stats.classified_awb + stats.classified_bl) / Math.max(stats.total, 1) * 100),
-          avgUnitValue: stats.averageUnitValue,
-          withInvoice: Math.floor(stats.total * 0.8),
-          withPO: Math.floor(stats.total * 0.9),
-          withCarrier: stats.total,
-          withPartida: Math.floor(stats.total * 0.7),
-        };
-      }
-
-      // Transformar WHRs para compatibilidad
-      transformedResponse.data.whrs = transformedResponse.data.whrs.map(whr => ({
-        ...whr,
-        warehouseUSA: {
-          invoiceNumber: whr.invoiceNumber,
-          carrier: whr.carrier,
-          completionRate: 100,
-          avgUnitValue: whr.unitValue,
-          withInvoice: 1,
-          withPO: 1,
-          withCarrier: 1,
-          withPartida: 1,
+      console.error('❌ Error fetching stats:', error);
+      // Retornar stats por defecto en caso de error
+      return {
+        totalWHRs: 0,
+        totalWeight: 0,
+        totalValue: 0,
+        totalPieces: 0,
+        byClassification: {
+          aereo: 0,
+          maritimo: 0,
+          pending: 0
         },
-        calculations: {
-          volume: whr.volume || 0,
-          volumeWeight: whr.volumeWeight || 0,
-          chargeableWeight: whr.chargeableWeight || 0,
-          totalValue: whr.totalValue || 0,
-        }
-      }));
-
-      // Limitar resultados si se especifica
-      if (params.limit) {
-        transformedResponse.data.whrs = transformedResponse.data.whrs.slice(0, params.limit);
-      }
-
-      return transformedResponse;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Crear WHR
-  static async createWHR(whrData: WHRCreateData): Promise<WHRResponse> {
-    try {
-      // Transformar datos para compatibilidad
-      const transformedData = {
-        ...whrData,
-        partida: whrData.partida || whrData.partidaArancelaria || '',
+        emailSentRate: 0,
+        classificationRate: 0
       };
+    }
+  }
 
-      const response = await this.makeRequest<WHRResponse>('/whr', {
-        method: 'POST',
-        body: JSON.stringify(transformedData),
+  // Clasificar WHR (Aéreo/Marítimo)
+  async classifyWHR(id: string, classification: 'aereo' | 'maritimo'): Promise<WHRPackage> {
+    try {
+      console.log(`🏷️ Classifying WHR ${id} as ${classification}`);
+      
+      const response = await fetch(`${this.baseUrl}/whr/${id}/classify`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ classification }),
       });
 
-      // Enriquecer respuesta para compatibilidad
-      if (response.data || response.whr) {
-        const whr = response.data || response.whr!;
-        
-        response.data = {
-          ...whr,
-          id: whr.id || whr.whrNumber,
-          warehouseUSA: {
-            invoiceNumber: whr.invoiceNumber,
-            carrier: whr.carrier,
-            completionRate: 100,
-            avgUnitValue: whr.unitValue,
-            withInvoice: 1,
-            withPO: 1,
-            withCarrier: 1,
-            withPartida: 1,
-          },
-          calculations: {
-            volume: whr.volume || 0,
-            volumeWeight: whr.volumeWeight || 0,
-            chargeableWeight: whr.chargeableWeight || 0,
-            totalValue: whr.totalValue || 0,
-          }
-        };
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Failed to classify WHR'}`);
       }
 
-      return response;
+      const result = await response.json();
+      console.log('✅ WHR classified successfully:', result.data);
+      return result.data;
     } catch (error) {
+      console.error('❌ Error classifying WHR:', error);
       throw error;
     }
   }
 
-  // Clasificar WHR (método genérico para compatibilidad)
-  static async classifyWHR(id: string | number, type: 'awb' | 'bl'): Promise<WHRResponse> {
+  // Enviar notificación por email
+  async sendEmailNotification(id: string): Promise<WHRPackage> {
     try {
-      return await this.makeRequest<WHRResponse>(`/whr/${id}/classify`, {
-        method: 'PUT',
-        body: JSON.stringify({ type }),
-      });
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Clasificar WHR como AWB (Aéreo)
-  static async classifyAsAWB(id: string): Promise<WHRResponse> {
-    return this.classifyWHR(id, 'awb');
-  }
-
-  // Clasificar WHR como BL (Marítimo)
-  static async classifyAsBL(id: string): Promise<WHRResponse> {
-    return this.classifyWHR(id, 'bl');
-  }
-
-  // Enviar email
-  static async sendEmail(id: string | number): Promise<WHRResponse> {
-    try {
-      return await this.makeRequest<WHRResponse>(`/whr/${id}/email`, {
+      console.log(`📧 Sending email notification for WHR ${id}`);
+      
+      const response = await fetch(`${this.baseUrl}/whr/${id}/email`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Failed to send email'}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Email sent successfully:', result.data);
+      return result.data;
     } catch (error) {
+      console.error('❌ Error sending email:', error);
       throw error;
     }
   }
 
   // Eliminar WHR
-  static async deleteWHR(id: string | number): Promise<WHRResponse> {
+  async deleteWHR(id: string): Promise<boolean> {
     try {
-      return await this.makeRequest<WHRResponse>(`/whr/${id}`, {
+      console.log(`🗑️ Deleting WHR ${id}`);
+      
+      const response = await fetch(`${this.baseUrl}/whr/${id}`, {
         method: 'DELETE',
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Failed to delete WHR'}`);
+      }
+
+      console.log('✅ WHR deleted successfully');
+      return true;
     } catch (error) {
+      console.error('❌ Error deleting WHR:', error);
       throw error;
     }
   }
 
-  // Obtener todos los WHRs (método de instancia para compatibilidad)
-  static async getWHRs(): Promise<{
-    success: boolean;
-    data: WHRPackage[];
-    stats: WHRStats;
-  }> {
+  // Test de conexión
+  async testConnection(): Promise<boolean> {
     try {
-      const response = await this.listWHRs();
-      return {
-        success: response.success,
-        data: response.data.whrs,
-        stats: response.data.stats
-      };
+      const response = await fetch(`${this.baseUrl}/health`);
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        console.log('✅ Warehouse service connection OK:', result.data);
+        return true;
+      } else {
+        console.warn('⚠️ Warehouse service connection failed:', result);
+        return false;
+      }
     } catch (error) {
-      throw error;
+      console.error('❌ Warehouse service connection error:', error);
+      return false;
     }
   }
-
-  // Calcular volumen (fórmula WAREHOUSE-USA)
-  static calculateVolume(length: number, width: number, height: number): number {
-    return (length * width * height) * 0.000578746;
-  }
-
-  // Calcular peso volumétrico
-  static calculateVolumeWeight(volume: number): number {
-    return volume * 10.4;
-  }
-
-  // Calcular peso facturable
-  static calculateChargeableWeight(physicalWeight: number, volumeWeight: number): number {
-    return Math.max(physicalWeight, volumeWeight);
-  }
 }
 
-// Utilities para compatibilidad
-export class WarehouseUtils {
-  static calculateVolume(length: number, width: number, height: number): number {
-    return WarehouseService.calculateVolume(length, width, height);
-  }
-
-  static calculateVolumeWeight(volume: number): number {
-    return WarehouseService.calculateVolumeWeight(volume);
-  }
-
-  static calculateChargeableWeight(physicalWeight: number, volumeWeight: number): number {
-    return WarehouseService.calculateChargeableWeight(physicalWeight, volumeWeight);
-  }
-
-  static calculateTotalValue(quantity: number, unitValue: number): number {
-    return quantity * unitValue;
-  }
-}
-
-// Instancia por defecto que delega a métodos estáticos
-export const warehouseService = {
-  createWHR: WarehouseService.createWHR,
-  getWHRs: WarehouseService.getWHRs,
-  getStats: WarehouseService.getStats,
-  classifyAsAWB: WarehouseService.classifyAsAWB,
-  classifyAsBL: WarehouseService.classifyAsBL,
-  sendEmail: WarehouseService.sendEmail,
-  deleteWHR: WarehouseService.deleteWHR,
-  healthCheck: WarehouseService.healthCheck,
-  calculateVolume: WarehouseService.calculateVolume,
-  calculateVolumeWeight: WarehouseService.calculateVolumeWeight,
-  calculateChargeableWeight: WarehouseService.calculateChargeableWeight,
+// Funciones de utilidad para cálculos WAREHOUSE-USA
+export const calculateVolume = (length: number, width: number, height: number): number => {
+  return (length * width * height) * 0.000578746; // Conversión a pies cúbicos
 };
 
+<<<<<<< HEAD
 // Export por defecto para compatibilidad
 export default warehouseService;
+=======
+export const calculateVolumeWeight = (volume: number): number => {
+  return volume * 10.4; // Factor de conversión estándar
+};
+
+export const generateWHRNumber = (): string => {
+  const date = new Date();
+  const year = date.getFullYear().toString().slice(-2);
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  
+  return `WHR${year}${month}${day}${random}`;
+};
+
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+};
+
+export const formatWeight = (weight: number): string => {
+  return `${weight.toFixed(2)} kg`;
+};
+
+export const formatVolume = (volume: number): string => {
+  return `${volume.toFixed(4)} ft³`;
+};
+
+// Instancia singleton
+export const warehouseService = OperativeWarehouseService.getInstance();
+
+// Export por defecto
+export default warehouseService;
+>>>>>>> upgrade-v4.0

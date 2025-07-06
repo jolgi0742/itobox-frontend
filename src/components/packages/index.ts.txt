@@ -1,0 +1,46 @@
+export { NewPackageModalForm } from './NewPackageForm';
+export { ProductManager } from './ProductManager';
+export * from './types';
+
+// ===== EJEMPLO DE USO COMPLETO =====
+import React, { useState } from 'react';
+import { 
+  NewPackageModalForm, 
+  ProductManager, 
+  PackageData, 
+  PackageItem 
+} from './components/packages';
+
+const PackagesPage: React.FC = () => {
+  const [showModal, setShowModal] = useState(false);
+  const [packageItems, setPackageItems] = useState<PackageItem[]>([]);
+  const [serviceType, setServiceType] = useState('standard');
+
+  const handleCreatePackage = (packageData: PackageData) => {
+    console.log('Nuevo paquete:', packageData);
+    setShowModal(false);
+  };
+
+  return (
+    <div>
+      <button onClick={() => setShowModal(true)}>
+        Nuevo Paquete
+      </button>
+
+      {/* Modal de nuevo paquete con gestión de productos integrada */}
+      <NewPackageModalForm
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleCreatePackage}
+      />
+
+      {/* Gestión de productos standalone */}
+      <ProductManager
+        items={packageItems}
+        onItemsChange={setPackageItems}
+        serviceType={serviceType}
+        onServiceTypeChange={setServiceType}
+      />
+    </div>
+  );
+};

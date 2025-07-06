@@ -1,0 +1,764 @@
+import React, { useState } from 'react';
+import { 
+  Settings, User, Users, Shield, Building, Bell, 
+  Lock, Globe, Palette, Database, Mail, Plus,
+  Edit, Trash2, Eye, EyeOff, Save, X, Crown,
+  UserCheck, Truck, AlertCircle, CheckCircle
+} from 'lucide-react';
+
+// ===== INTERFACES =====
+interface UserData {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'admin' | 'courier' | 'client' | 'supervisor' | 'operator';
+  status: 'active' | 'inactive' | 'suspended';
+  createdAt: string;
+  lastLogin?: string;
+  permissions: string[];
+  phone?: string;
+  department?: string;
+}
+
+interface RoleConfig {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  icon: React.ComponentType<any>;
+  color: string;
+  level: number;
+}
+
+// ===== CONFIGURACIÓN DE ROLES =====
+const ROLE_CONFIGS: RoleConfig[] = [
+  {
+    id: 'admin',
+    name: 'Administrador',
+    description: 'Acceso completo al sistema, gestión de usuarios y configuración',
+    permissions: ['all'],
+    icon: Crown,
+    color: 'bg-purple-100 text-purple-800',
+    level: 1
+  },
+  {
+    id: 'supervisor',
+    name: 'Supervisor',
+    description: 'Supervisión de operaciones, reportes y gestión de equipos',
+    permissions: ['view_all', 'manage_couriers', 'generate_reports', 'view_analytics'],
+    icon: Shield,
+    color: 'bg-blue-100 text-blue-800',
+    level: 2
+  },
+  {
+    id: 'operator',
+    name: 'Operador',
+    description: 'Gestión de paquetes, clientes y operaciones diarias',
+    permissions: ['manage_packages', 'manage_clients', 'view_reports', 'manage_warehouse'],
+    icon: UserCheck,
+    color: 'bg-green-100 text-green-800',
+    level: 3
+  },
+  {
+    id: 'courier',
+    name: 'Courier',
+    description: 'Gestión de entregas, actualización de estados y rutas',
+    permissions: ['update_deliveries', 'view_routes', 'update_package_status'],
+    icon: Truck,
+    color: 'bg-orange-100 text-orange-800',
+    level: 4
+  },
+  {
+    id: 'client',
+    name: 'Cliente',
+    description: 'Acceso limitado para seguimiento de paquetes propios',
+    permissions: ['view_own_packages', 'track_packages', 'view_invoices'],
+    icon: User,
+    color: 'bg-gray-100 text-gray-800',
+    level: 5
+  }
+];
+
+const SAMPLE_USERS: UserData[] = [
+  {
+    id: '1',
+    firstName: 'Admin',
+    lastName: 'ITOBOX',
+    email: 'admin@itobox.com',
+    role: 'admin',
+    status: 'active',
+    createdAt: '2024-01-01',
+    lastLogin: '2024-12-16T10:30:00Z',
+    permissions: ['all'],
+    phone: '+1 (555) 123-4567',
+    department: 'Administración'
+  },
+  {
+    id: '2',
+    firstName: 'Carlos',
+    lastName: 'Supervisor',
+    email: 'supervisor@itobox.com',
+    role: 'supervisor',
+    status: 'active',
+    createdAt: '2024-02-15',
+    lastLogin: '2024-12-16T09:15:00Z',
+    permissions: ['view_all', 'manage_couriers', 'generate_reports'],
+    phone: '+1 (555) 234-5678',
+    department: 'Operaciones'
+  },
+  {
+    id: '3',
+    firstName: 'Ana',
+    lastName: 'Operadora',
+    email: 'operador@itobox.com',
+    role: 'operator',
+    status: 'active',
+    createdAt: '2024-03-01',
+    permissions: ['manage_packages', 'manage_clients'],
+    department: 'Logística'
+  }
+];
+
+export const SettingsEnhancedWithRoles: React.FC = () => {
+  // ===== ESTADOS =====
+  const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'company' | 'security' | 'notifications'>('users');
+  const [users, setUsers] = useState<UserData[]>(SAMPLE_USERS);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState<string>('all');
+
+  const [newUser, setNewUser] = useState<Partial<UserData>>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    role: 'client',
+    status: 'active',
+    permissions: [],
+    phone: '',
+    department: ''
+  });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState('');
+
+  // ===== FUNCIONES =====
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+    return matchesSearch && matchesRole;
+  });
+
+  const createUser = () => {
+    const roleConfig = ROLE_CONFIGS.find(r => r.id === newUser.role);
+    
+    const user: UserData = {
+      id: `user_${Date.now()}`,
+      firstName: newUser.firstName || '',
+      lastName: newUser.lastName || '',
+      email: newUser.email || '',
+      role: newUser.role as any || 'client',
+      status: 'active',
+      createdAt: new Date().toISOString().split('T')[0],
+      permissions: roleConfig?.permissions || [],
+      phone: newUser.phone,
+      department: newUser.department
+    };
+
+    setUsers(prev => prev.map(user => 
+      user.id === editingUser.id ? editingUser : user
+    ));
+    
+    setEditingUser(null);
+    console.log('✅ Usuario actualizado exitosamente:', editingUser);
+    alert(`✅ Usuario ${editingUser.firstName} ${editingUser.lastName} actualizado exitosamente`);
+  };
+
+  const deleteUser = (userId: string) => {
+    if (window.confirm('¿Está seguro de que desea eliminar este usuario?')) {
+      setUsers(prev => prev.filter(user => user.id !== userId));
+      console.log('🗑️ Usuario eliminado:', userId);
+    }
+  };
+
+  const resetForm = () => {
+    setNewUser({
+      firstName: '',
+      lastName: '',
+      email: '',
+      role: 'client',
+      status: 'active',
+      permissions: [],
+      phone: '',
+      department: ''
+    });
+    setPassword('');
+  };
+
+  const getRoleConfig = (roleId: string) => {
+    return ROLE_CONFIGS.find(r => r.id === roleId) || ROLE_CONFIGS[4]; // Default to client
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'inactive': return <AlertCircle className="w-4 h-4 text-gray-600" />;
+      case 'suspended': return <AlertCircle className="w-4 h-4 text-red-600" />;
+      default: return <AlertCircle className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-gray-100 text-gray-800';
+      case 'suspended': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // ===== RENDER =====
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Configuración del Sistema</h1>
+        <p className="text-gray-600 mt-1">Gestión de usuarios, roles y configuración general</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex space-x-1 mb-8 bg-gray-100 p-1 rounded-lg w-fit">
+        {[
+          { id: 'users', label: 'Usuarios', icon: Users },
+          { id: 'roles', label: 'Roles y Permisos', icon: Shield },
+          { id: 'company', label: 'Empresa', icon: Building },
+          { id: 'security', label: 'Seguridad', icon: Lock },
+          { id: 'notifications', label: 'Notificaciones', icon: Bell }
+        ].map(tab => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Gestión de Usuarios */}
+      {activeTab === 'users' && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Gestión de Usuarios</h2>
+              <p className="text-gray-600">Administre usuarios del sistema y sus permisos</p>
+            </div>
+            <button
+              onClick={() => setShowUserModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Nuevo Usuario</span>
+            </button>
+          </div>
+
+          {/* Filtros */}
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1 relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Buscar usuarios..."
+              />
+            </div>
+            <select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Todos los roles</option>
+              {ROLE_CONFIGS.map(role => (
+                <option key={role.id} value={role.id}>{role.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Lista de Usuarios */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Usuario
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Rol
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Último Acceso
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredUsers.map(user => {
+                    const roleConfig = getRoleConfig(user.role);
+                    const RoleIcon = roleConfig.icon;
+                    
+                    return (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
+                              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.firstName} {user.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                              {user.phone && (
+                                <div className="text-xs text-gray-400">{user.phone}</div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${roleConfig.color}`}>
+                              <RoleIcon className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{roleConfig.name}</div>
+                              {user.department && (
+                                <div className="text-xs text-gray-500">{user.department}</div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            {getStatusIcon(user.status)}
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>
+                              {user.status === 'active' ? 'Activo' : user.status === 'inactive' ? 'Inactivo' : 'Suspendido'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Nunca'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => setEditingUser({ ...user })}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteUser(user.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Roles y Permisos */}
+      {activeTab === 'roles' && (
+        <div>
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Roles y Permisos</h2>
+            <p className="text-gray-600">Configuración de roles del sistema y sus permisos</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ROLE_CONFIGS.map(role => {
+              const Icon = role.icon;
+              const userCount = users.filter(u => u.role === role.id).length;
+              
+              return (
+                <div key={role.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${role.color}`}>
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                      Nivel {role.level}
+                    </span>
+                  </div>
+                  
+                  <h3 className="font-semibold text-gray-900 mb-2">{role.name}</h3>
+                  <p className="text-sm text-gray-600 mb-4">{role.description}</p>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="text-xs text-gray-500 font-medium">Permisos:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {role.permissions.slice(0, 3).map(permission => (
+                        <span key={permission} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          {permission.replace('_', ' ')}
+                        </span>
+                      ))}
+                      {role.permissions.length > 3 && (
+                        <span className="text-xs text-gray-500">+{role.permissions.length - 3} más</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">{userCount} usuarios</span>
+                    <button className="text-blue-600 hover:text-blue-700 font-medium">
+                      Configurar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Otras pestañas placeholder */}
+      {activeTab === 'company' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div className="text-center">
+            <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Configuración de Empresa</h3>
+            <p className="text-gray-600">Información general de la empresa, logos y configuraciones corporativas</p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'security' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div className="text-center">
+            <Lock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Configuración de Seguridad</h3>
+            <p className="text-gray-600">Políticas de contraseñas, autenticación de dos factores y configuraciones de seguridad</p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'notifications' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div className="text-center">
+            <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Configuración de Notificaciones</h3>
+            <p className="text-gray-600">Configurar alertas, emails automáticos y notificaciones del sistema</p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Nuevo Usuario */}
+      {showUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 text-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">Crear Nuevo Usuario</h2>
+                <button onClick={() => setShowUserModal(false)} className="text-white hover:text-gray-200">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              <div className="space-y-6">
+                {/* Información Personal */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre *
+                    </label>
+                    <input
+                      type="text"
+                      value={newUser.firstName}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, firstName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Juan"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Apellido *
+                    </label>
+                    <input
+                      type="text"
+                      value={newUser.lastName}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, lastName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Pérez"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="juan@empresa.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contraseña *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Rol del Usuario */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Rol del Usuario *
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {ROLE_CONFIGS.map(role => {
+                      const Icon = role.icon;
+                      return (
+                        <button
+                          key={role.id}
+                          type="button"
+                          onClick={() => setNewUser(prev => ({ ...prev, role: role.id as any }))}
+                          className={`p-4 border-2 rounded-lg text-left transition-all ${
+                            newUser.role === role.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              newUser.role === role.id ? 'bg-blue-500 text-white' : role.color
+                            }`}>
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-gray-900">{role.name}</h3>
+                              <p className="text-xs text-gray-500">{role.description}</p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Información Adicional */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Teléfono
+                    </label>
+                    <input
+                      type="tel"
+                      value={newUser.phone}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, phone: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="+1 (555) 123-4567"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Departamento
+                    </label>
+                    <select
+                      value={newUser.department}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, department: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Seleccionar departamento</option>
+                      <option value="Administración">Administración</option>
+                      <option value="Operaciones">Operaciones</option>
+                      <option value="Logística">Logística</option>
+                      <option value="Facturación">Facturación</option>
+                      <option value="Atención al Cliente">Atención al Cliente</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowUserModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={createUser}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Crear Usuario
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Editar Usuario */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-green-600 to-blue-600 px-6 py-4 text-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">Editar Usuario</h2>
+                <button onClick={() => setEditingUser(null)} className="text-white hover:text-gray-200">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    <input
+                      type="text"
+                      value={editingUser.firstName}
+                      onChange={(e) => setEditingUser(prev => prev ? { ...prev, firstName: e.target.value } : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+                    <input
+                      type="text"
+                      value={editingUser.lastName}
+                      onChange={(e) => setEditingUser(prev => prev ? { ...prev, lastName: e.target.value } : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editingUser.email}
+                    onChange={(e) => setEditingUser(prev => prev ? { ...prev, email: e.target.value } : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                  <select
+                    value={editingUser.role}
+                    onChange={(e) => setEditingUser(prev => prev ? { ...prev, role: e.target.value as any } : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {ROLE_CONFIGS.map(role => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                  <select
+                    value={editingUser.status}
+                    onChange={(e) => setEditingUser(prev => prev ? { ...prev, status: e.target.value as any } : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                    <option value="suspended">Suspendido</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={updateUser}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Actualizar Usuario
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SettingsEnhancedWithRoles; [...prev, user]);
+    setShowUserModal(false);
+    resetForm();
+    
+    console.log('✅ Usuario creado exitosamente:', user);
+    alert(`✅ Usuario ${user.firstName} ${user.lastName} creado exitosamente`);
+  };
+
+  const updateUser = () => {
+    if (!editingUser) return;
+
+    setUsers(prev =>
