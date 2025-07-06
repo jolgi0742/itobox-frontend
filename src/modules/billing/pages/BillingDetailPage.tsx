@@ -84,7 +84,6 @@ const BillingDetailPage: React.FC = () => {
   const navigate = (path: string) => {
   window.location.hash = path;
   window.location.reload();
-};
   const billingId = getParam('id');
   
   const [billingData, setBillingData] = useState<BillingDetail | null>(null);
