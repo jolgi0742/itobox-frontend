@@ -1,4 +1,4 @@
-// src/components/layout/MainLayout.tsx - COMPLETO
+// src/components/layout/MainLayout.tsx - LIMPIO SIN DUPLICADOS
 
 import React, { useState } from 'react';
 import { 
@@ -33,7 +33,7 @@ const navigation: NavItem[] = [
   { name: 'Configuración', path: '/settings', icon: Settings }
 ];
 
-export default function MainLayout({ children }: MainLayoutProps) {
+function MainLayout({ children }: MainLayoutProps) {
   // Hooks
   const { user, logout } = useAuth();
   const { currentPath, isActivePath, breadcrumbs } = useNavigation();
@@ -43,7 +43,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Función para navegar (usando window.location para SPA sin React Router)
+  // Función para navegar
   const handleNavigation = (path: string) => {
     window.location.href = path;
     setIsSidebarOpen(false);
@@ -54,7 +54,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
     e.preventDefault();
     if (searchQuery.trim()) {
       console.log('Searching for:', searchQuery);
-      // Aquí implementarías la lógica de búsqueda
     }
   };
 
@@ -245,4 +244,5 @@ export default function MainLayout({ children }: MainLayoutProps) {
     </div>
   );
 }
+
 export default MainLayout;
