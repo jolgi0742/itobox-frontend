@@ -30,8 +30,7 @@ interface Notification {
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { navigate: contextNavigate } = useNavigation();
-  
+  const navigationContext = useNavigation();  
   // Estados locales
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
