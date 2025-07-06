@@ -1,0 +1,705 @@
+import React, { useState } from 'react';
+import { 
+  FileText, Download, Eye, Calendar, Filter, BarChart3, 
+  TrendingUp, Package, Users, DollarSign, Truck, 
+  FileSpreadsheet, FilePdf, Search, Plus, Settings,
+  Ship, Plane, Clock, CheckCircle
+} from 'lucide-react';
+
+// ===== INTERFACES =====
+interface ReportTemplate {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ComponentType<any>;
+  category: 'operational' | 'financial' | 'analytics' | 'manifest';
+  fields: string[];
+  format: 'pdf' | 'excel' | 'csv';
+  estimatedTime: string;
+}
+
+interface CustomReportData {
+  title: string;
+  dateRange: {
+    from: string;
+    to: string;
+  };
+  filters: {
+    clients: string[];
+    services: string[];
+    status: string[];
+    carriers: string[];
+  };
+  groupBy: string;
+  includeCharts: boolean;
+  format: 'pdf' | 'excel' | 'csv';
+}
+
+const REPORT_TEMPLATES: ReportTemplate[] = [
+  {
+    id: 'packages_summary',
+    name: 'Resumen de Paquetes',
+    description: 'Reporte general de todos los paquetes por período',
+    icon: Package,
+    category: 'operational',
+    fields: ['tracking', 'cliente', 'peso', 'valor', 'estado', 'fecha'],
+    format: 'excel',
+    estimatedTime: '30 segundos'
+  },
+  {
+    id: 'revenue_analysis',
+    name: 'Análisis de Ingresos',
+    description: 'Ingresos detallados por servicio y cliente',
+    icon: DollarSign,
+    category: 'financial',
+    fields: ['cliente', 'servicio', 'ingresos', 'comisiones', 'utilidad'],
+    format: 'pdf',
+    estimatedTime: '45 segundos'
+  },
+  {
+    id: 'client_performance',
+    name: 'Rendimiento de Clientes',
+    description: 'Estadísticas de envíos por cliente',
+    icon: Users,
+    category: 'analytics',
+    fields: ['cliente', 'total_paquetes', 'valor_promedio', 'frecuencia'],
+    format: 'excel',
+    estimatedTime: '1 minuto'
+  },
+  {
+    id: 'courier_efficiency',
+    name: 'Eficiencia de Couriers',
+    description: 'Rendimiento y productividad de couriers',
+    icon: Truck,
+    category: 'operational',
+    fields: ['courier', 'entregas', 'tiempo_promedio', 'calificacion'],
+    format: 'pdf',
+    estimatedTime: '40 segundos'
+  },
+  {
+    id: 'manifest_air',
+    name: 'Manifiesto Aéreo',
+    description: 'Lista detallada de paquetes para envío aéreo',
+    icon: Plane,
+    category: 'manifest',
+    fields: ['tracking', 'peso', 'valor', 'destinatario', 'partida'],
+    format: 'pdf',
+    estimatedTime: '20 segundos'
+  },
+  {
+    id: 'manifest_maritime',
+    name: 'Manifiesto Marítimo',
+    description: 'Lista consolidada para envío marítimo',
+    icon: Ship,
+    category: 'manifest',
+    fields: ['contenedor', 'tracking', 'peso_total', 'valor_total', 'cliente'],
+    format: 'pdf',
+    estimatedTime: '25 segundos'
+  },
+  {
+    id: 'monthly_summary',
+    name: 'Resumen Mensual',
+    description: 'Reporte ejecutivo del mes',
+    icon: BarChart3,
+    category: 'analytics',
+    fields: ['metricas_clave', 'tendencias', 'comparativa', 'proyecciones'],
+    format: 'pdf',
+    estimatedTime: '1.5 minutos'
+  },
+  {
+    id: 'delayed_packages',
+    name: 'Paquetes Retrasados',
+    description: 'Seguimiento de paquetes con retrasos',
+    icon: Clock,
+    category: 'operational',
+    fields: ['tracking', 'dias_retraso', 'causa', 'accion_requerida'],
+    format: 'excel',
+    estimatedTime: '35 segundos'
+  }
+];
+
+const QUICK_REPORTS = [
+  { id: 'today_deliveries', name: 'Entregas de Hoy', icon: CheckCircle, count: 23 },
+  { id: 'pending_packages', name: 'Paquetes Pendientes', icon: Clock, count: 47 },
+  { id: 'new_clients', name: 'Nuevos Clientes (7 días)', icon: Users, count: 8 },
+  { id: 'revenue_today', name: 'Ingresos Hoy', icon: DollarSign, count: '$2,845' },
+  { id: 'active_couriers', name: 'Couriers Activos', icon: Truck, count: 12 },
+  { id: 'in_transit', name: 'En Tránsito', icon: Package, count: 156 }
+];
+
+export const ReportsEnhancedSystem: React.FC = () => {
+  // ===== ESTADOS =====
+  const [activeTab, setActiveTab] = useState<'quick' | 'templates' | 'custom' | 'manifests'>('quick');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+
+  const [customReport, setCustomReport] = useState<CustomReportData>({
+    title: '',
+    dateRange: {
+      from: new Date().toISOString().split('T')[0],
+      to: new Date().toISOString().split('T')[0]
+    },
+    filters: {
+      clients: [],
+      services: [],
+      status: [],
+      carriers: []
+    },
+    groupBy: 'date',
+    includeCharts: true,
+    format: 'pdf'
+  });
+
+  // ===== FUNCIONES =====
+  const generateReport = async (reportId: string, format?: string) => {
+    setIsGenerating(reportId);
+    
+    try {
+      console.log(`📊 Generando reporte: ${reportId} en formato ${format || 'default'}`);
+      
+      // Simular generación
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Simular descarga
+      const reportName = REPORT_TEMPLATES.find(r => r.id === reportId)?.name || 'Reporte';
+      console.log(`✅ Reporte "${reportName}" generado exitosamente`);
+      
+      // Mostrar notificación de éxito
+      alert(`✅ Reporte "${reportName}" generado y descargado exitosamente`);
+      
+    } catch (error) {
+      console.error('❌ Error generando reporte:', error);
+      alert('❌ Error al generar el reporte. Intente nuevamente.');
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
+  const generateQuickReport = async (reportId: string) => {
+    console.log(`⚡ Generando reporte rápido: ${reportId}`);
+    
+    const quickReport = QUICK_REPORTS.find(r => r.id === reportId);
+    if (quickReport) {
+      // Simular generación rápida
+      await new Promise(resolve => setTimeout(resolve, 800));
+      console.log(`✅ Reporte rápido "${quickReport.name}" generado`);
+      alert(`📊 Reporte rápido "${quickReport.name}" generado exitosamente`);
+    }
+  };
+
+  const generateCustomReport = async () => {
+    console.log('🎨 Generando reporte personalizado:', customReport);
+    setIsGenerating('custom');
+    
+    try {
+      // Simular generación de reporte personalizado
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      console.log('✅ Reporte personalizado generado exitosamente');
+      alert('✅ Reporte personalizado generado y descargado exitosamente');
+      setShowCustomModal(false);
+      
+    } catch (error) {
+      console.error('❌ Error generando reporte personalizado:', error);
+      alert('❌ Error al generar el reporte personalizado');
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
+  const filteredTemplates = REPORT_TEMPLATES.filter(template => {
+    const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
+    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         template.description.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const manifestReports = REPORT_TEMPLATES.filter(template => template.category === 'manifest');
+
+  // ===== RENDER =====
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Sistema de Reportes</h1>
+            <p className="text-gray-600 mt-1">Genere reportes operativos, financieros y manifiestos</p>
+          </div>
+          <button
+            onClick={() => setShowCustomModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Reporte Personalizado</span>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex space-x-1 mt-6 bg-gray-100 p-1 rounded-lg w-fit">
+          {[
+            { id: 'quick', label: 'Reportes Rápidos', icon: TrendingUp },
+            { id: 'templates', label: 'Plantillas', icon: FileText },
+            { id: 'manifests', label: 'Manifiestos', icon: Ship },
+            { id: 'custom', label: 'Personalizado', icon: Settings }
+          ].map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Reportes Rápidos */}
+      {activeTab === 'quick' && (
+        <div>
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Reportes Rápidos</h2>
+            <p className="text-gray-600">Genere reportes instantáneos con un solo clic</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {QUICK_REPORTS.map(report => {
+              const Icon = report.icon;
+              return (
+                <div key={report.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Icon className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900">{report.name}</h3>
+                        <p className="text-2xl font-bold text-gray-900">{report.count}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => generateQuickReport(report.id)}
+                      className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Descargar</span>
+                    </button>
+                    <button
+                      onClick={() => generateQuickReport(report.id)}
+                      className="flex items-center justify-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Plantillas de Reportes */}
+      {activeTab === 'templates' && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Plantillas de Reportes</h2>
+              <p className="text-gray-600">Reportes predefinidos para análisis detallados</p>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              {/* Búsqueda */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                  placeholder="Buscar reportes..."
+                />
+              </div>
+              
+              {/* Filtro por categoría */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Todas las categorías</option>
+                <option value="operational">Operacionales</option>
+                <option value="financial">Financieros</option>
+                <option value="analytics">Analytics</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTemplates.map(template => {
+              const Icon = template.icon;
+              const isGenerating = isGenerating === template.id;
+              
+              return (
+                <div key={template.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      template.category === 'operational' ? 'bg-blue-100 text-blue-800' :
+                      template.category === 'financial' ? 'bg-green-100 text-green-800' :
+                      template.category === 'analytics' ? 'bg-purple-100 text-purple-800' :
+                      'bg-orange-100 text-orange-800'
+                    }`}>
+                      {template.category}
+                    </span>
+                  </div>
+                  
+                  <h3 className="font-semibold text-gray-900 mb-2">{template.name}</h3>
+                  <p className="text-sm text-gray-600 mb-4">{template.description}</p>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-xs text-gray-500">
+                      <Clock className="w-3 h-3 mr-1" />
+                      <span>Tiempo estimado: {template.estimatedTime}</span>
+                    </div>
+                    <div className="flex items-center text-xs text-gray-500">
+                      <FileText className="w-3 h-3 mr-1" />
+                      <span>Formato: {template.format.toUpperCase()}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => generateReport(template.id)}
+                      disabled={isGenerating}
+                      className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                    >
+                      {isGenerating ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      <span>{isGenerating ? 'Generando...' : 'Descargar'}</span>
+                    </button>
+                    <button
+                      onClick={() => generateReport(template.id, 'preview')}
+                      className="flex items-center justify-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Manifiestos de Carga */}
+      {activeTab === 'manifests' && (
+        <div>
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Manifiestos de Carga</h2>
+            <p className="text-gray-600">Genere manifiestos para envíos aéreos y marítimos</p>
+          </div>
+
+          {/* Estadísticas de Manifiestos */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Plane className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Aéreos Pendientes</p>
+                  <p className="text-2xl font-bold text-gray-900">45</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Ship className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Marítimos Pendientes</p>
+                  <p className="text-2xl font-bold text-gray-900">23</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Package className="w-5 h-5 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Peso Total</p>
+                  <p className="text-2xl font-bold text-gray-900">847 kg</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Valor Total</p>
+                  <p className="text-2xl font-bold text-gray-900">$45,230</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Manifiestos */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {manifestReports.map(manifest => {
+              const Icon = manifest.icon;
+              const isGenerating = isGenerating === manifest.id;
+              
+              return (
+                <div key={manifest.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-green-500 rounded-lg flex items-center justify-center">
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{manifest.name}</h3>
+                      <p className="text-sm text-gray-600">{manifest.description}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 mb-4 text-sm text-gray-600">
+                    <div>📦 Paquetes incluidos: {manifest.id === 'manifest_air' ? '45' : '23'}</div>
+                    <div>⚖️ Peso total: {manifest.id === 'manifest_air' ? '342 kg' : '505 kg'}</div>
+                    <div>💰 Valor declarado: {manifest.id === 'manifest_air' ? '$28,450' : '$16,780'}</div>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => generateReport(manifest.id)}
+                      disabled={isGenerating}
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      {isGenerating ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      <span>{isGenerating ? 'Generando...' : 'Generar Manifiesto'}</span>
+                    </button>
+                    <button
+                      onClick={() => generateReport(manifest.id, 'preview')}
+                      className="flex items-center justify-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Reportes Personalizados */}
+      {activeTab === 'custom' && (
+        <div>
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Reportes Personalizados</h2>
+            <p className="text-gray-600">Configure reportes según sus necesidades específicas</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Settings className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Constructor de Reportes Personalizados</h3>
+              <p className="text-gray-600 mb-6">
+                Cree reportes a medida seleccionando campos, filtros y formatos específicos
+              </p>
+              <button
+                onClick={() => setShowCustomModal(true)}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Crear Reporte Personalizado</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Reporte Personalizado */}
+      {showCustomModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 text-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">Reporte Personalizado</h2>
+                <button onClick={() => setShowCustomModal(false)} className="text-white hover:text-gray-200">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              <div className="space-y-6">
+                {/* Título del Reporte */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Título del Reporte
+                  </label>
+                  <input
+                    type="text"
+                    value={customReport.title}
+                    onChange={(e) => setCustomReport(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Mi Reporte Personalizado"
+                  />
+                </div>
+
+                {/* Rango de Fechas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Fecha Desde
+                    </label>
+                    <input
+                      type="date"
+                      value={customReport.dateRange.from}
+                      onChange={(e) => setCustomReport(prev => ({
+                        ...prev,
+                        dateRange: { ...prev.dateRange, from: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Fecha Hasta
+                    </label>
+                    <input
+                      type="date"
+                      value={customReport.dateRange.to}
+                      onChange={(e) => setCustomReport(prev => ({
+                        ...prev,
+                        dateRange: { ...prev.dateRange, to: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Agrupar Por */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Agrupar Por
+                  </label>
+                  <select
+                    value={customReport.groupBy}
+                    onChange={(e) => setCustomReport(prev => ({ ...prev, groupBy: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="date">Fecha</option>
+                    <option value="client">Cliente</option>
+                    <option value="service">Tipo de Servicio</option>
+                    <option value="courier">Courier</option>
+                    <option value="status">Estado</option>
+                  </select>
+                </div>
+
+                {/* Formato */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Formato de Salida
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { value: 'pdf', label: 'PDF', icon: FilePdf },
+                      { value: 'excel', label: 'Excel', icon: FileSpreadsheet },
+                      { value: 'csv', label: 'CSV', icon: FileText }
+                    ].map(format => {
+                      const Icon = format.icon;
+                      return (
+                        <button
+                          key={format.value}
+                          type="button"
+                          onClick={() => setCustomReport(prev => ({ ...prev, format: format.value as any }))}
+                          className={`p-3 border-2 rounded-lg text-center transition-all ${
+                            customReport.format === format.value
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <Icon className={`w-6 h-6 mx-auto mb-1 ${
+                            customReport.format === format.value ? 'text-blue-600' : 'text-gray-500'
+                          }`} />
+                          <div className="text-sm font-medium">{format.label}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Incluir Gráficos */}
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="includeCharts"
+                    checked={customReport.includeCharts}
+                    onChange={(e) => setCustomReport(prev => ({ ...prev, includeCharts: e.target.checked }))}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="includeCharts" className="text-sm font-medium text-gray-700">
+                    Incluir gráficos y visualizaciones
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={generateCustomReport}
+                  disabled={isGenerating === 'custom'}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {isGenerating === 'custom' ? 'Generando...' : 'Generar Reporte'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ReportsEnhancedSystem;

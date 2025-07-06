@@ -1,0 +1,280 @@
+import React, { useState } from 'react';
+import { Package, Edit, Download, Search, Plus, Eye } from 'lucide-react';
+
+// Interfaces (importarías desde el archivo anterior)
+interface ProductItem {
+  id: string;
+  partitionNumber: string;
+  description: string;
+  unitValue: number;
+  quantity: number;
+  totalValue: number;
+  weight: number;
+  category: string;
+  isEditable?: boolean;
+}
+
+interface WHRData {
+  id: string;
+  whrNumber: string;
+  clientName: string;
+  receivedDate: string;
+  status: 'pending' | 'classified' | 'processed' | 'shipped';
+  products: ProductItem[];
+  totalWeight: number;
+  totalValue: number;
+  location: string;
+  notes: string;
+  trackingNumbers: string[];
+}
+
+// Datos simulados
+const SAMPLE_WHRS: WHRData[] = [
+  {
+    id: 'WHR001',
+    whrNumber: 'WHR241216001',
+    clientName: 'María González Jiménez',
+    receivedDate: '2024-12-16',
+    status: 'classified',
+    products: [
+      {
+        id: 'p1',
+        partitionNumber: '8517.12.00',
+        description: 'Smartphone iPhone 15 Pro 128GB',
+        unitValue: 999.00,
+        quantity: 1,
+        totalValue: 999.00,
+        weight: 0.187,
+        category: 'Electrónicos'
+      },
+      {
+        id: 'p2',
+        partitionNumber: '4202.22.40',
+        description: 'Bolso de mano Coach cuero genuino',
+        unitValue: 295.00,
+        quantity: 1,
+        totalValue: 295.00,
+        weight: 0.6,
+        category: 'Accesorios'
+      }
+    ],
+    totalWeight: 0.787,
+    totalValue: 1294.00,
+    location: 'A-12-B',
+    notes: 'Paquetes frágiles, manejar con cuidado',
+    trackingNumbers: ['1Z999AA1234567890', '1Z999AA1234567891']
+  },
+  {
+    id: 'WHR002',
+    whrNumber: 'WHR241216002',
+    clientName: 'Carlos Rodríguez Morales',
+    receivedDate: '2024-12-16',
+    status: 'pending',
+    products: [
+      {
+        id: 'p3',
+        partitionNumber: '8471.30.01',
+        description: 'Laptop MacBook Air 13" M2 256GB',
+        unitValue: 1199.00,
+        quantity: 1,
+        totalValue: 1199.00,
+        weight: 1.24,
+        category: 'Computadoras'
+      }
+    ],
+    totalWeight: 1.24,
+    totalValue: 1199.00,
+    location: 'B-05-A',
+    notes: '',
+    trackingNumbers: ['1Z999AA1234567892']
+  }
+];
+
+export const WarehouseMainComponent: React.FC = () => {
+  // ===== ESTADOS =====
+  const [whrs, setWhrs] = useState<WHRData[]>(SAMPLE_WHRS);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [editingWHR, setEditingWHR] = useState<string | null>(null);
+
+  // ===== FUNCIONES =====
+  const filteredWHRs = whrs.filter(whr => {
+    const matchesSearch = whr.whrNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         whr.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === 'all' || whr.status === selectedStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const downloadWHRPDF = (whrId: string) => {
+    const whr = whrs.find(w => w.id === whrId);
+    if (whr) {
+      console.log(`📄 Generando PDF del WHR: ${whr.whrNumber}`);
+      
+      // Simular proceso de generación
+      const shouldProceed = window.confirm(
+        `¿Desea continuar con la creación del PDF para ${whr.whrNumber}?`
+      );
+      
+      if (shouldProceed) {
+        // Simular generación
+        setTimeout(() => {
+          console.log(`✅ PDF del WHR ${whr.whrNumber} generado exitosamente`);
+          alert(`📄 PDF del WHR ${whr.whrNumber} descargado exitosamente`);
+        }, 2000);
+      }
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'classified': return 'bg-blue-100 text-blue-800';
+      case 'processed': return 'bg-purple-100 text-purple-800';
+      case 'shipped': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pendiente';
+      case 'classified': return 'Clasificado';
+      case 'processed': return 'Procesado';
+      case 'shipped': return 'Enviado';
+      default: return status;
+    }
+  };
+
+  // ===== RENDER =====
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Gestión de Almacén</h1>
+            <p className="text-gray-600 mt-1">Gestión de recibos de almacén y productos</p>
+          </div>
+          <div className="flex space-x-3">
+            <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <Plus className="w-5 h-5" />
+              <span>Nuevo WHR</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="flex flex-col md:flex-row gap-4 mt-6">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Buscar por WHR, cliente..."
+            />
+          </div>
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Todos los estados</option>
+            <option value="pending">Pendiente</option>
+            <option value="classified">Clasificado</option>
+            <option value="processed">Procesado</option>
+            <option value="shipped">Enviado</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Lista de WHRs */}
+      <div className="space-y-6">
+        {filteredWHRs.map(whr => (
+          <div key={whr.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
+            {/* Header del WHR */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Package className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{whr.whrNumber}</h3>
+                    <p className="text-sm text-gray-600">{whr.clientName}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(whr.status)}`}>
+                    {getStatusLabel(whr.status)}
+                  </span>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setEditingWHR(editingWHR === whr.id ? null : whr.id)}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Editar WHR"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => downloadWHRPDF(whr.id)}
+                    className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    title="Descargar PDF"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                  <button 
+                    className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                    title="Ver detalles"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Información general */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">📅 Recibido:</span>
+                  <span>{new Date(whr.receivedDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">📍 Ubicación:</span>
+                  <span>{whr.location}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">⚖️ Peso:</span>
+                  <span>{whr.totalWeight.toFixed(2)} kg</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">💰 Valor:</span>
+                  <span className="font-medium text-green-600">${whr.totalValue.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Información de productos - simplificada para este componente */}
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-medium text-gray-900">Productos ({whr.products.length})</h4>
+                <span className="text-sm text-gray-500">
+                  Total: {whr.products.reduce((sum, p) => sum + p.quantity, 0)} items
+                </span>
+              </div>
+
+              {/* Lista simplificada de productos */}
+              <div className="space-y-2">
+                {whr.products.slice(0, 3).map((product, index) => (
+                  <div key={product.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded font-mono">
+                          {product.partitionNumber}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900">{product.description}</span>
+                      </div>
+                    </div>
+                    <div className="text-right text-sm">
+                      <div>Qty: {product.quantity}</div>
+                      <div className="text-green-600 font-medium">${product.totalValue.toFixed(2)}</div>

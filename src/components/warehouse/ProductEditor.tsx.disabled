@@ -1,0 +1,382 @@
+import React, { useState } from 'react';
+import { Plus, Search, X, Trash2, Hash, Tag, Weight, Calculator, Save } from 'lucide-react';
+
+// Interfaces (importarías desde el archivo de interfaces)
+interface ProductItem {
+  id: string;
+  partitionNumber: string;
+  description: string;
+  unitValue: number;
+  quantity: number;
+  totalValue: number;
+  weight: number;
+  category: string;
+  isEditable?: boolean;
+}
+
+const PRODUCT_CATALOG = [
+  {
+    partitionNumber: '8517.12.00',
+    description: 'Smartphone iPhone 15 Pro 128GB',
+    unitValue: 999.00,
+    weight: 0.187,
+    category: 'Electrónicos'
+  },
+  {
+    partitionNumber: '8471.30.01',
+    description: 'Laptop MacBook Air 13" M2 256GB',
+    unitValue: 1199.00,
+    weight: 1.24,
+    category: 'Computadoras'
+  },
+  {
+    partitionNumber: '6403.91.60',
+    description: 'Zapatos deportivos Nike Air Force 1',
+    unitValue: 120.00,
+    weight: 0.8,
+    category: 'Calzado'
+  },
+  {
+    partitionNumber: '8518.30.20',
+    description: 'Audífonos inalámbricos Sony WH-1000XM5',
+    unitValue: 349.00,
+    weight: 0.254,
+    category: 'Audio'
+  },
+  {
+    partitionNumber: '4202.22.40',
+    description: 'Bolso de mano Coach cuero genuino',
+    unitValue: 295.00,
+    weight: 0.6,
+    category: 'Accesorios'
+  }
+];
+
+interface ProductEditorProps {
+  products: ProductItem[];
+  onProductsChange: (products: ProductItem[]) => void;
+  isEditing: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}
+
+export const ProductEditor: React.FC<ProductEditorProps> = ({
+  products,
+  onProductsChange,
+  isEditing,
+  onSave,
+  onCancel
+}) => {
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+
+  const filteredCatalog = PRODUCT_CATALOG.filter(product =>
+    product.description.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+    product.partitionNumber.includes(productSearchTerm)
+  );
+
+  const addProductFromCatalog = (productTemplate: any) => {
+    const newProduct: ProductItem = {
+      ...productTemplate,
+      id: `p_${Date.now()}`,
+      quantity: 1,
+      totalValue: productTemplate.unitValue,
+      isEditable: true
+    };
+
+    const updatedProducts = [...products, newProduct];
+    onProductsChange(updatedProducts);
+    setShowProductModal(false);
+  };
+
+  const updateProduct = (productId: string, updates: Partial<ProductItem>) => {
+    const updatedProducts = products.map(product => {
+      if (product.id === productId) {
+        const updated = { ...product, ...updates };
+        // Recalcular total value si cambia cantidad o valor unitario
+        if (updates.quantity !== undefined || updates.unitValue !== undefined) {
+          updated.totalValue = updated.quantity * updated.unitValue;
+        }
+        return updated;
+      }
+      return product;
+    });
+    onProductsChange(updatedProducts);
+  };
+
+  const removeProduct = (productId: string) => {
+    const updatedProducts = products.filter(p => p.id !== productId);
+    onProductsChange(updatedProducts);
+  };
+
+  const totalWeight = products.reduce((sum, p) => sum + (p.weight * p.quantity), 0);
+  const totalValue = products.reduce((sum, p) => sum + p.totalValue, 0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="font-medium text-gray-900">Productos ({products.length})</h4>
+        {isEditing && (
+          <button
+            onClick={() => setShowProductModal(true)}
+            className="flex items-center space-x-2 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Agregar Producto</span>
+          </button>
+        )}
+      </div>
+
+      {products.length === 0 ? (
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Plus className="w-6 h-6 text-gray-400" />
+          </div>
+          <p className="text-gray-500 mb-2">No hay productos agregados</p>
+          {isEditing && (
+            <button
+              onClick={() => setShowProductModal(true)}
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Agregar primer producto
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {products.map(product => (
+            <div key={product.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+              <div className="grid grid-cols-1 md:grid-cols-8 gap-4 items-center">
+                {/* Número de Partida */}
+                <div className="md:col-span-1">
+                  <label className="block text-xs text-gray-500 mb-1">Partida</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={product.partitionNumber}
+                      onChange={(e) => updateProduct(product.id, { partitionNumber: e.target.value })}
+                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <div className="flex items-center space-x-1">
+                      <Hash className="w-3 h-3 text-gray-400" />
+                      <span className="text-xs font-mono">{product.partitionNumber}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Descripción */}
+                <div className="md:col-span-3">
+                  <label className="block text-xs text-gray-500 mb-1">Descripción</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={product.description}
+                      onChange={(e) => updateProduct(product.id, { description: e.target.value })}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900">{product.description}</p>
+                  )}
+                </div>
+
+                {/* Cantidad */}
+                <div className="md:col-span-1">
+                  <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      min="1"
+                      value={product.quantity}
+                      onChange={(e) => updateProduct(product.id, { quantity: parseInt(e.target.value) || 1 })}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium">{product.quantity}</span>
+                  )}
+                </div>
+
+                {/* Valor Unitario */}
+                <div className="md:col-span-1">
+                  <label className="block text-xs text-gray-500 mb-1">Valor Unit.</label>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={product.unitValue}
+                      onChange={(e) => updateProduct(product.id, { unitValue: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className="text-sm text-green-600 font-medium">${product.unitValue.toFixed(2)}</span>
+                  )}
+                </div>
+
+                {/* Total */}
+                <div className="md:col-span-1">
+                  <label className="block text-xs text-gray-500 mb-1">Total</label>
+                  <span className="text-sm font-bold text-green-700">${product.totalValue.toFixed(2)}</span>
+                </div>
+
+                {/* Acciones */}
+                <div className="md:col-span-1 flex justify-end">
+                  {isEditing && (
+                    <button
+                      onClick={() => removeProduct(product.id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Información adicional */}
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500">
+                <div>
+                  <span className="inline-flex items-center space-x-1">
+                    <Tag className="w-3 h-3" />
+                    <span>Categoría: {product.category}</span>
+                  </span>
+                </div>
+                <div>
+                  <span className="inline-flex items-center space-x-1">
+                    <Weight className="w-3 h-3" />
+                    <span>Peso: {(product.weight * product.quantity).toFixed(2)} kg</span>
+                  </span>
+                </div>
+                <div>
+                  <span className="inline-flex items-center space-x-1">
+                    <Calculator className="w-3 h-3" />
+                    <span>Peso unit: {product.weight} kg</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Resumen */}
+      {products.length > 0 && (
+        <div className="mt-6 bg-gray-50 rounded-lg p-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-600">{products.length}</div>
+              <div className="text-gray-600">Productos</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-purple-600">{totalWeight.toFixed(2)} kg</div>
+              <div className="text-gray-600">Peso Total</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-green-600">${totalValue.toFixed(2)}</div>
+              <div className="text-gray-600">Valor Total</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-orange-600">
+                {products.reduce((sum, p) => sum + p.quantity, 0)}
+              </div>
+              <div className="text-gray-600">Items Total</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Botones de acción */}
+      {isEditing && (
+        <div className="mt-4 flex space-x-3">
+          <button
+            onClick={onSave}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            <span>Guardar Cambios</span>
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-4 h-4" />
+            <span>Cancelar</span>
+          </button>
+        </div>
+      )}
+
+      {/* Modal de Selección de Productos */}
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-green-600 to-blue-600 px-6 py-4 text-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold">Agregar Producto desde Catálogo</h3>
+                <button onClick={() => setShowProductModal(false)} className="text-white hover:text-gray-200">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Búsqueda */}
+              <div className="mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={productSearchTerm}
+                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Buscar productos por descripción o número de partida..."
+                  />
+                </div>
+              </div>
+
+              {/* Lista de Productos */}
+              <div className="overflow-y-auto max-h-96">
+                <div className="space-y-3">
+                  {filteredCatalog.map((product, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded font-mono">
+                              {product.partitionNumber}
+                            </span>
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                              {product.category}
+                            </span>
+                          </div>
+                          <h4 className="font-medium text-gray-900 mb-1">{product.description}</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                            <div>💰 Valor: <span className="font-medium text-green-600">${product.unitValue.toFixed(2)}</span></div>
+                            <div>⚖️ Peso: <span className="font-medium">{product.weight} kg</span></div>
+                            <div>📂 Categoría: <span className="font-medium">{product.category}</span></div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => addProductFromCatalog(product)}
+                          className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          Agregar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {filteredCatalog.length === 0 && (
+                  <div className="text-center py-8">
+                    <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500">No se encontraron productos</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProductEditor;
