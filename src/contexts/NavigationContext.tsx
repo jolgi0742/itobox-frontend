@@ -1,4 +1,4 @@
-// src/contexts/NavigationContext.tsx - COMPLETO
+// src/contexts/NavigationContext.tsx - LIMPIO
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { NavigationContextType, BreadcrumbItem } from '../types';
@@ -31,8 +31,6 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
   const navigate = useCallback((path: string) => {
     setCurrentPath(path);
     window.history.pushState({}, '', path);
-    
-    // Actualizar breadcrumbs
     updateBreadcrumbs(path);
   }, []);
 
@@ -89,7 +87,7 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
     window.history.forward();
   }, []);
 
-  // Escuchar cambios en el navegador (botón atrás/adelante)
+  // Escuchar cambios en el navegador
   useEffect(() => {
     const handlePopState = () => {
       const newPath = window.location.pathname;
@@ -98,8 +96,6 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
     };
 
     window.addEventListener('popstate', handlePopState);
-    
-    // Inicializar breadcrumbs al cargar
     updateBreadcrumbs(currentPath);
 
     return () => {
@@ -130,4 +126,3 @@ export function useNavigation(): NavigationContextType {
   }
   return context;
 }
-export default NavigationContext;
